@@ -1,18 +1,18 @@
 Linux高性能服务器学习
 =
 ## 一.TCP/IP协议
-### a.协议层次
-1.TCP、IP协议是一个四层的结构：
+### a.协议层次<br>
+1.TCP、IP协议是一个四层的结构：<br>
 ![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/001.png)
-2.数据链路层，常用的协议是ARP协议和RARP协议，实现了IP地址和物理地址之间的转化
-3.网络层，常用协议有ICMP、IP
-4.传输层，常用协议有TCP、UDP
-5.应用层，不举例
-### b.协议封装
+2.数据链路层，常用的协议是ARP协议和RARP协议，实现了IP地址和物理地址之间的转化<br>
+3.网络层，常用协议有ICMP、IP<br>
+4.传输层，常用协议有TCP、UDP<br>
+5.应用层，不举例<br>
+### b.协议封装<br>
 ![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/002.png)
 ## 二.IP协议
-### a.IPV4
-1.头部结构：
+### a.IPV4<br>
+1.头部结构：<br>
 ![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/003.png)
 - 4位版本号固定为4；
 - 4位头部长度表示头部有多少个4字节，4位最大表示15，所以头部长度最大为60字节；
@@ -27,12 +27,12 @@ Linux高性能服务器学习
 - 32位源IP；
 - 32位目的IP；
 - 最多40位的边长信息
-2.IP分片
-IP报文长度超过数据帧的MTU时，分片；MTU为1500字节，因此携带的最多数据为1480字节
-3.IP路由
-route命令查看路由表
+2.IP分片<br>
+IP报文长度超过数据帧的MTU时，分片；MTU为1500字节，因此携带的最多数据为1480字节<br>
+3.IP路由<br>
+route命令查看路由表<br>
 ### b.IPV6
-1.头部结构：
+1.头部结构：<br>
 ![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/004.png)
 - 4位版本号固定为6；
 - 8位通信类型类似于IPV4的TOS；
@@ -64,7 +64,7 @@ route命令查看路由表
 ### c.三次握手四次挥手
 ![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/006.png)
 ### d.半关闭状态
-通信的一方发送结束报文给对方，但仍允许接收数据，直到对方也发送了结束报文，这种状态就是半关闭状态
+通信的一方发送结束报文给对方，但仍允许接收数据，直到对方也发送了结束报文，这种状态就是半关闭状态<br>
 ### e.TCP状态转移
 ![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/007.png)
-TIME_WAIT状态是一方收到另一方的结束报文时，不直接关闭，而是等待2个最大报文生存时间，保证连接可靠关闭以及迟到数据正确接收
+TIME_WAIT状态是一方收到另一方的结束报文时，不直接关闭，而是等待2个最大报文生存时间，保证连接可靠关闭以及迟到数据正确接收<br>
