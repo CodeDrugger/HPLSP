@@ -89,3 +89,43 @@ TCP连接建立好后，CWND被设置为初始值，SWND=CWND，发送后收到�
 > 举例：发送端发送了1,2,3三个报文段，3丢失，接收方回复了1,2的确认报文，发送方接着发送了4,5,6报文，发送方仍然回复了3个2报文的确认报文，这时发送端快速重传3，接收方回复6的接收报文<br>
 
 快速恢复即将ssthresh减为CWND的一半（Reno），CWND=ssthresh，重新开始拥塞控制<br>
+## Linux网络编程基础API
+### a.字节序转换
+``` C++
+#include <netinet/in.h>
+unsigned long int htonl(unsigned long int hostlong); //host to network long
+unsigned long int ntohl(unsigned long int netlong); //network to host long
+```
+### b.TCP专用地址结构体
+``` C++
+struct sockaddr_in {
+short sin_family; //Address family一般来说AF_INET（地址族）PF_INET（协议族）
+unsigned short sin_port; //Port number(必须要采用网络数据格式,普通数字可以用htons()函数转换成网络数据格式的数字)
+struct in_addr sin_addr; //IP address in network byte order（Internet address）
+unsigned char sin_zero[8]; //Same size as struct sockaddr没有实际意义,只是为了　跟SOCKADDR结构在内存中对齐
+};
+
+struct in_addr {
+u_int32_t s_addr;
+};
+```
+### c.点分十进制和整数的转化
+``` C++
+#include <arpa/inet.h>
+in_addr_t inet_addr(const char* strptr) //点分十进制转化为整数
+int inet_aton(const char* cp, struct in_addr* inp) //点分十进制转化为整数，结果放在inp中，成功返回1，失败返回0
+char* inet_ntoa(struct in_addr in) //整型转化为点分十进制
+```
+### d.创建socket
+``` C++
+#include <sys/types.h>
+#include <sys/socket.h>
+/*
+domain：使用哪个底层协议PF_INET IPV4 PF_INET6 IPV6
+type：使用哪个服务类型，SOCK_STREAM流服务 SOCK_UGRAM数据报
+type接受上述值与SOCK_NONBLOCK（非阻塞） SOCK_CLOEXEC（使用fork创建子进程时关闭该socket）相与
+protocol默认0
+失败返回-1
+*/
+int socket(int domain, int type, int protocol) 
+```
