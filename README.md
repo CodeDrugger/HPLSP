@@ -129,3 +129,180 @@ protocol默认0
 */
 int socket(int domain, int type, int protocol) 
 ```
+### e.绑定socket
+``` C++
+/*
+my_addr：需要绑定的socket地址
+sockfd：需要绑定的文件描述符
+addrlen：需要绑定的socket地址的长度
+成功返回0，失败返回-1
+*/
+int bind(int sockfd, const struct sockaddr* my_addr, socklen_t addrlen)
+```
+### f.监听socket
+创建监听队列存放待处理的客户连接
+``` C++
+#include <sys/socket.h>
+/*
+sockfd：被监听的socket
+backlog：监听队列的长度，典型值是5
+*/
+int listen(int sockfd, int backlog)
+```
+### g.接收连接
+从listen的监听队列中获取一个连接
+``` C++
+#include <sys/types.h>
+#include <sys/socket.h>
+/*
+sockfd：是执行过listen的socket
+addr：用来获取被接受连接的远端socket地址
+addrlen：指出远端socket地址的长度
+失败时返回-1
+*/
+int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+```
+### h.发起连接
+``` C++
+#include <sys/types.h>
+#include <sys/socket.h>
+/*
+sockfd：由socket返回一个socket
+serv_addr：服务器监听的socket地址
+addrlen：是个地址的长度
+成功返回0
+*/
+int connect(int sockfd, const struct sockaddr* serv_addr, socklen_t addrlen)
+```
+### i.关闭连接
+并非立即关闭连接，而是将fd的引用计数-1，只有当fd的引用计数为0时，才会真正关闭。<br>
+多进程程序中，一次fork默认将系统已打开的socket引用计数+1，只有在父进程和子进程中都调用close()才能关闭连接
+``` C++
+#include <unistd.h>
+/*
+fd：待关闭的连接
+*/
+int close(int sockfd)
+```
+
+无论如何都要立即终止连接，可使用：<br>
+``` C++
+#include <socket.h>
+/*
+fd：待关闭的连接
+howto：
+  SHUT_RD：关闭sockfd上读的一半，程序不能再对其进行读操作，接收缓冲区的数据将被丢弃
+  SHUT_WR：关闭sockfd上写的一半，缓冲区中的数据会在真正关闭连接之前全部发送出去，程序不能再对其进行写操作，这种情况下，socket处于半关闭状态
+  SHUT_RDWR：读写同时关闭
+*/
+int shutdown(int sockfd, int howto)
+```
+### j.数据读写
+文件读写操作read()和write()同样适用socket，socket接口提供了专用的系统调用<br>
+#### TCP数据读写
+``` C++
+/*
+sockfd：需要读取的文件描述符
+buf：读缓冲区
+len：读缓冲区的大小
+flags：通常为0，具体见后图
+调用成功时返回实际读取到的长度，返回0表示对方已经关闭了连接，-1表示出错
+*/
+ssize_t recv(int sockfd, void *buf, size_t len, int flags)
+
+/*
+sockfd：需要写入的文件描述符
+buf：写缓冲区
+len：写缓冲区的长度
+flags：通常为0，具体见后图
+*/
+ssize_t send(int sockfd, const void *buf, size_t len, int flags)
+```
+#### UDP数据读写
+TCP连接也可以调用，调用时地址填NULL
+``` C++
+/*
+sockfd：需要读取的文件描述符
+buf：读缓冲区
+len：读缓冲区的大小
+flags：通常为0，具体见后图
+src_addr：发送端socket地址
+addrlen：发送端socket地址长度
+*/
+ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr* src_addr, socklen_t * addrlen)
+
+/*
+sockfd：需要写入的文件描述符
+buf：写缓冲区
+len：写缓冲区的长度
+flags：通常为0，具体见后图
+dest_addr：接收端socket地址
+addrlen：接收端socket地址长度
+*/
+ssize_t sendto(int sockfd, void *buf, size_t len, int flags, struct sockaddr* dest_addr, socklen_t * addrlen)
+```
+#### 通用数据读写
+TCP/UDP都适用<br>
+对于读取来说，数据将被读取并存放在msg_iovlen块分散的内存块中，这些内存的位置和长度由msg_iov指定，这称为分散读；<br>
+对于写入来说，msg_iovlen块分散内存中的数据将被一并发送，这称为集中写<br>
+``` C++
+/*
+sockfd：需要读取的文件描述符
+msg：见后
+flags：通常为0，具体见后图
+*/
+ssize_t recvmsg(int sockfd, struct msghdr* msg, int flags)
+
+/*
+sockfd：需要写入的文件描述符
+msg：见后
+flags：通常为0，具体见后图
+*/
+ssize_t sendmsg(int sockfd, struct msghdr* msg, int flags)
+
+struct msghdr
+{
+    void* msg_name; //socket地址
+    socklen_t msg_namelen; //socket地址的长度
+    struct iovec* msg_iov; //分散内存块，见后
+    int msg_iovlen; //分散内存块的数量
+    void* msg_control; //指向辅助数据的起始位置
+    socklen_t msg_controllen; //辅助数据的大小
+    int msg_flags; //复制函数中的flags参数，并在调用过程中更新
+};
+
+struct iovec
+{
+    void* iov_base; //内存块起始地址
+    size_t iov_len; //内存块长度
+}
+```
+![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/008.png)
+### k.带外数据
+内核通知应用程序带外数据到来的方式通常有I/O复用产生的异常事件和SIGURG信号，应用程序可以通过如下系统调用知道带外数据在数据流中的位置：<br>
+``` C++
+#include <sys/socket.h>
+/*
+sockfd：待判断的socket文件描述符
+返回1时就可以利用带MSG_OOB标志的recv调用来接收带外数据，如果不是就返回0
+*/
+int sockatmark(int sockfd)
+```
+### l.地址信息函数
+用于获取一个socket连接的本端socket地址或远端socket地址，可以使用下面两个系统调用<br>
+``` C++
+#include <sys/socket.h>
+/*
+sockfd：需要获取的socket对应的文件描述符
+address：获取到的地址将存储于address指定的内存
+address_len：address的长度
+*/
+int getsockname(int sockfd, struct sockaddr* address, socklen_t * address_len)
+/*
+sockfd：需要获取的socket对应的文件描述符
+address：获取到的地址将存储于address指定的内存
+address_len：address的长度
+*/
+int getpeername(int sockfd, struct sockaddr* address, socklen_t * address_len)
+```
+### m.socket选项
