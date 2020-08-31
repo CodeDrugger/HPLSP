@@ -306,3 +306,59 @@ address_len：address的长度
 int getpeername(int sockfd, struct sockaddr* address, socklen_t * address_len)
 ```
 ### m.socket选项
+用来读取和设置socket文件描述符属性的方法<br>
+``` C++
+#include <sys/socket.h>
+/*
+sockfd：指定被操作的socket
+level：指定要操作哪个协议的选项
+option_name：指定选项的名字
+option_value：被操作选项的值
+option_len：被操作选项的值的长度，restrict表示该指针是访问对象的唯一指针
+成功时返回0，失败返回-1
+*/
+int getsockopt(int sockfd, int level, int option_name, void* option_value, socklen_t* restrict option_len)
+int setsockopt(int sockfd, int level, int option_name, const void* option_value, socklen_t option_len)
+```
+![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/009.png)
+SO_REUSEADDR：设置该选项强制使用被处于TIME_WAIT状态的连接占用的socket地址<br>
+SO_RCVBUF、SO_SNDBUF：设置TCP接收缓冲区和发送缓冲区的大小，设置后系统通常会将其加倍，并且不得小于某个值<br>
+SO_RCVLOWAT、SO_SNDLOWAT：分别表示TCP接收缓冲区和发送缓冲区的低水位标记，一般被IO复用系统调用用来判断socket是否可读或可写，当接收缓冲区的数据大于标记时，IO复用通知应用程序可读取数据，当发送缓冲区的空闲空间大于标记时，IO复用通知应用程序可写入数据，通常都是1<br>
+SO_LINGER：用于控制close系统调用在关闭TCP连接时的行为，设置该选项时，需要传一个linger类型的结构体：<br>
+``` C++
+#include <sys/socket.h>
+struct linger
+{
+    int l_onoff; //开启（非0）还是关闭（0）该选项
+    int l_linger; // 滞留时间
+}
+```
+- l_onoff等于0时，SO_LINGER选项不起作用，close使用默认行为关闭socket
+- l_onoff不为0，l_linger为0时，close立即返回，TCP模块丢弃发送缓冲区中的数据，并发送复位报文段
+- l_onoff不为0，l_linger大于0时，
+  - 对于阻塞的socket，close等待l_linger长的时间，直到TCP模块发送所有残留数据并得到对方确认，如果没有完成，close返回-1，并置errno为EWOULDBLOCK
+  - 对于非阻塞socket，close立即返回，需要根据errno的值判断是否已经发送完毕<br>
+### n.网络信息API
+``` C++
+#include <netdb.h>
+struct hostent
+{
+    char* h_name; //主机名
+    char** h_aliaases; //主机名列表
+    int h_addrtype; //地址类型
+    int h_length; //地址长度
+    char** h_addr_list; //按网络字节序列出的IP地址列表
+}
+
+/*
+name：主机名
+*/
+struct hostent* gethostbyname(const char* name)
+
+/*
+addr：目标主机的IP地址
+len：addr所指IP地址的长度
+type：addr所指IP地址的类型（AF_INET:IPV4或AF_INET6:IPV6）
+*/
+struct hostent* gethostbyaddr(const void* addr, size_t len, int type)
+```
