@@ -421,4 +421,62 @@ file_descriptor_two：表示返回的文件描述符不小于该值
 */
 int dup2(int file_descriptor_one, int file_descriptor_two);
 ```
-dup函数创建一个新的文件描述符，该文件描述符和源文件描述符file_descriptor指向相同的文件、管道或网络连接<br>
+dup函数创建一个新的文件描述符，该文件描述符和源文件描述符file_descriptor指向相同的文件、管道或网络连接，[示例代码](https://github.com/CodeDrugger/HPLSP/blob/master/code/dup.cpp)<br>
+### readv函数和writev函数
+readv函数将数据从文件描述符读到分散内存块中，即分散读，writev函数则将多块分散内存数据一并写入文件描述符中<br>
+``` C++
+#include <sys/uio.h>
+/*
+fd：被操作的文件描述符
+vector：iovec数组，iovec描述一块内存
+count：vector数组的长度
+调用成功返回读/写的字符数，失败返回-1
+*/
+ssize_t readv(int fd, const struct iovec* vector, int count)
+ssize_t writev(int fd, const struct iovec* vector, int count)
+```
+### sendfile函数
+在两个文件描述符中直接传递数据，完全在内核中操作，从而避免了内核缓冲区和用户缓冲区之间的数据拷贝，效率很高<br>
+``` C++
+#include <sys/sendfile.h>
+/*
+in_fd：待读出内容的文件描述符，支持类似mmap函数的文件描述符，不能是管道或socket
+out_fd：待写入内容的文件描述符，必须是socket
+offet：指定读入文件流的位置
+count：指定传输的字节数
+调用成功返回传输字节数，调用失败返回-1
+*/
+sszie_t sendfile(int out_fd, int in_fd, off_t* offset, size_t count)
+```
+### mmap和munmap函数
+mmap函数用于申请一段内存，是一种内存映射文件的方法，也可用于进程间通信，munmap用于释放mmap申请的内存<br>
+``` C++
+#include <sys/mman.h>
+/*
+start：允许用户使用某个特定的地址作为申请内存的起始地址，为NULL时系统自动分配地址
+length：指定内存段的长度
+prot：指定内存短的访问权限，可取PROT_READ（内存短可读）、PROT_WRITE（内存短可写）、PROT_EXEC（内存段可执行）、PROT_NONE（内存段不能被访问）的按位或
+flag：控制内存段被修改后的程序行为
+fd：被映射文件对应的文件描述符
+offset：指定从文件的何处开始映射
+调用成功返回指向目标区域的指针，失败返回-1
+*/
+void* mmap(void* start, size_t length, int prot, int flags, int fd, off_t offset)
+```
+flags的常用值以及含义：<br>
+![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/010.png)
+### splice函数
+用于在两个文件描述符之间移动数据，是零拷贝操作
+``` C++
+#include <fcntl.h>
+/*
+fd_in：是待输入数据的文件描述符
+off_in：如果fd_in是一个管道文件描述符，off_in必须为NULL，如果不是，off_in指定从输入数据流的何处开始读取数据，此时如果off_in是NULL，表示从当前便宜开始读取
+fd_out、off_out和fd_in、off_in定义一致，不过用于输出流
+len：指定移动数据的长度
+flags：控制数据如何移动，可以设置为下图某些值的按位或
+fd_in和fd_out必须至少有一个是管道文件描述符，调用成功返移动的字节数，返回0表示没有数据移动，失败返回-1
+*/
+ssize_t splice(int fd_in, loff_t* off_in, int fd_out, loff_t* off_out, size_t len, unsigned int flags)
+```
+![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/011.png)
