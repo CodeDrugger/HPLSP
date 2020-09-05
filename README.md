@@ -362,3 +362,63 @@ type：addr所指IP地址的类型（AF_INET:IPV4或AF_INET6:IPV6）
 */
 struct hostent* gethostbyaddr(const void* addr, size_t len, int type)
 ```
+``` C++
+#include <netdb.h>
+/*
+name：指定目标服务的名字
+proto：指定服务类型
+*/
+struct servent* getservbyname(const char* name, const char* proto)
+
+/*
+port：指定目标服务对应的端口号
+proto：指定服务类型
+*/
+struct servent* getservbyport(int port, const char* proto)
+
+struct servent
+{
+    char* s_name; //服务名称
+    char** s_aliases; //服务的别名列表
+    int s_port; //端口号
+    char* s_proto; //服务类型，通常是TCP或UDP
+}
+```
+## 高级I/O函数
+### pipe函数
+用于创建一个管道，实现进程间通信，fd[1]写入数据，fd[0]读出数据，默认读写都是阻塞的<br>
+``` C++
+#include <unistd.h>
+/*
+成功时返回0，并将一对打开的文件描述符填入其参数指向的数组
+*/
+int pipe(int fd[2])
+```
+socketpair可以创建双向管道
+``` C++
+#include <sys/types.h>
+#include <sys/socket.h>
+/*
+domain：只能用UNIX本地域协议族AF_UNIX，只能在本地使用这个双向管道
+type、protocol和socket函数相同，fd[2]和pipe相同
+*/
+int socketpair(int domain, int type, int protocol, int fd[2])
+```
+### dup函数和dup2函数
+把标准输入重定向到一个文件或把标准输出重定向到一个网络连接<br>
+``` C++
+#include <unistd.h>
+/*
+file_descriptor：需要重定向的文件描述符
+调用失败返回-1，调用成功返回文件描述符，该文件描述符是当前可用的最小整数值
+*/
+int dup(int file_descriptor);
+
+/*
+file_descriptor_one：需要重定向的文件描述符
+file_descriptor_two：表示返回的文件描述符不小于该值
+调用失败返回-1，调用成功返回不小于file_descriptor_two的文件描述符
+*/
+int dup2(int file_descriptor_one, int file_descriptor_two);
+```
+dup函数创建一个新的文件描述符，该文件描述符和源文件描述符file_descriptor指向相同的文件、管道或网络连接<br>
