@@ -504,7 +504,7 @@ cmd：指定执行何种类型的操作
 */
 int fcntl(int fd, int cmd, ... )
 ```
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/012.png)
+![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/012.png)<br>
 通常用作将一个文件描述符设置为非阻塞的：
 ``` C++
 #include <fcntl.h>
@@ -513,6 +513,7 @@ int setnoblocking(int fd) {
     int new_option = old_option | O_NONBLOCK;
     fcntl(fd, F_SETFL, new_option);
     return old_option;
+}
 ```
 ## linux服务器程序规范
 ### 用户信息
