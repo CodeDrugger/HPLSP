@@ -480,3 +480,80 @@ fd_in和fd_out必须至少有一个是管道文件描述符，调用成功返移
 ssize_t splice(int fd_in, loff_t* off_in, int fd_out, loff_t* off_out, size_t len, unsigned int flags)
 ```
 ![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/011.png)
+### tee函数
+在两个管道文件描述符之间复制数据，是零拷贝操作，它不消耗数据，源文件描述符上的数据仍然可以用作后续的读操作
+``` C++
+#include <fcntl.h>
+/*
+fd_in：待输入数据的文件描述符，必须是管道
+fd_out：待读出数据的文件描述，必须是管道符
+len：复制的字节数
+flags：同splice函数
+调用成功返回复制的字节数，失败返回-1
+*/
+sszie_t tee(int fd_in, int fd_out, size_t len, unsigned int flags)
+```
+### fcntl函数
+提供对文件描述符的各种操作控制
+``` C++
+#include <fcntl.h>
+/*
+fd：被操作的文件描述符
+cmd：指定执行何种类型的操作
+第三个参数可选
+*/
+int fcntl(int fd, int cmd, ... )
+```
+![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/012.png)
+通常用作将一个文件描述符设置为非阻塞的：
+``` C++
+#include <fcntl.h>
+int setnoblocking(int fd) {
+    int old_option = fcntl(fd, F_GETFL);
+    int new_option = old_option | O_NONBLOCK;
+    fcntl(fd, F_SETFL, new_option);
+    return old_option;
+```
+## linux服务器程序规范
+### 用户信息
+UID：真实用户ID
+EUID：有效用户ID，存在的目的是方便资源访问，它使得运行程序的用户拥有该程序的有效用户的全效，有效用户为root的进程称为特权进程
+GID：真实组ID
+EGID：有效组ID，和EUID类似，给运行目标程序的组用户提供有效权限
+### 进程间关系
+#### 进程组
+Linux下每一个进程都隶属于一个进程组，进程除了PID信息外，还有进程组PGID<br>
+每个进程组都有一个首领进程，其PGID=PID，进程组一直存在，直到其中的所有进程都退出或加入其它进程组
+``` C++
+#include <unistd.h>
+pid_t getpgid(pid_t pid)
+/*
+把pid的PGID设置为pgid，当pid为0时，表示设置当前进程
+只能设置自己的或其子进程的PGID
+调用成功返回0，失败返回-1
+*/
+int setpgid(pid_t pid, pid_t pgid)
+```
+#### 会话
+一些有关联的进程组将形成一个会话，用下面的函数创建会话：
+``` C++
+#include <ubistd.h>
+/*
+调用成功返回新进程组的PGID
+*/
+pid_t setsid(void)
+```
+该函数不能由进程组的首领进程调用，对于非首领进程，调用该函数还有如下效果：
+- 调用进程成为会话的首领，此时该进程是会话的唯一进程
+- 新建一个进程组，其PGID就是调用进程的PID，调用进程称为该进程组的首领
+- 调用进程将甩开终端
+
+Linux未提供会话ID的概念，Linux认为它等于会话首领进程所在的进程组的PGID
+#### 改变工作目录和根目录
+获取当前进程的工作目录、改变进程的工作目录、改变进程根目录的函数分别是，只有特权进程才能改变根目录：
+``` C++
+#include <unistd.h>
+char* getcwd(char* buf, size_t size)
+int chdir(const char* dir)
+int chroot(const char* path)
+```
