@@ -384,7 +384,7 @@ struct servent
     char* s_proto; //服务类型，通常是TCP或UDP
 }
 ```
-## 高级I/O函数
+## 四.高级I/O函数
 ### pipe函数
 用于创建一个管道，实现进程间通信，fd[1]写入数据，fd[0]读出数据，默认读写都是阻塞的<br>
 ``` C++
@@ -515,7 +515,7 @@ int setnoblocking(int fd) {
     return old_option;
 }
 ```
-## linux服务器程序规范
+## 五.linux服务器程序规范
 ### 用户信息
 UID：真实用户ID
 EUID：有效用户ID，存在的目的是方便资源访问，它使得运行程序的用户拥有该程序的有效用户的全效，有效用户为root的进程称为特权进程
@@ -550,7 +550,7 @@ pid_t setsid(void)
 - 调用进程将甩开终端
 
 Linux未提供会话ID的概念，Linux认为它等于会话首领进程所在的进程组的PGID
-#### 改变工作目录和根目录
+### 改变工作目录和根目录
 获取当前进程的工作目录、改变进程的工作目录、改变进程根目录的函数分别是，只有特权进程才能改变根目录：
 ``` C++
 #include <unistd.h>
@@ -558,7 +558,7 @@ char* getcwd(char* buf, size_t size)
 int chdir(const char* dir)
 int chroot(const char* path)
 ```
-#### 服务器程序后台化
+### 服务器程序后台化
 ``` C++
 #include <unistd.h>
 /*
@@ -566,3 +566,7 @@ nochdir：传0时根目录被置为/
 noclose：传0时标准输入、标准输出、标准错误被重定向到/dev/null
 int daemon(int nochdir, int noclose)
 ```
+## 六.高性能服务器程序框架
+### 两种高效的事件处理模式
+#### Reactor模式
+要求主线程只负责监听文件描述符上是否有事件发生，有的话就立即通知工作线程，除此之外，主线程不做任何其他实质性的工作。数据读写，接收新的连接，处理客户请求均在工作线程中完成。
