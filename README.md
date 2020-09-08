@@ -558,3 +558,11 @@ char* getcwd(char* buf, size_t size)
 int chdir(const char* dir)
 int chroot(const char* path)
 ```
+#### 服务器程序后台化
+``` C++
+#include <unistd.h>
+/*
+nochdir：传0时根目录被置为/
+noclose：传0时标准输入、标准输出、标准错误被重定向到/dev/null
+int daemon(int nochdir, int noclose)
+```
