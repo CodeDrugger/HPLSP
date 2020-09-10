@@ -112,9 +112,9 @@ u_int32_t s_addr;
 ### c.点分十进制和整数的转化
 ``` C++
 #include <arpa/inet.h>
-in_addr_t inet_addr(const char* strptr) //点分十进制转化为整数
-int inet_aton(const char* cp, struct in_addr* inp) //点分十进制转化为整数，结果放在inp中，成功返回1，失败返回0
-char* inet_ntoa(struct in_addr in) //整型转化为点分十进制
+in_addr_t inet_addr(const char* strptr); //点分十进制转化为整数
+int inet_aton(const char* cp, struct in_addr* inp); //点分十进制转化为整数，结果放在inp中，成功返回1，失败返回0
+char* inet_ntoa(struct in_addr in); //整型转化为点分十进制
 ```
 ### d.创建socket
 ``` C++
@@ -127,7 +127,7 @@ type接受上述值与SOCK_NONBLOCK（非阻塞） SOCK_CLOEXEC（使用fork创�
 protocol默认0
 失败返回-1
 */
-int socket(int domain, int type, int protocol) 
+int socket(int domain, int type, int protocol);
 ```
 ### e.绑定socket
 ``` C++
@@ -137,7 +137,7 @@ sockfd：需要绑定的文件描述符
 addrlen：需要绑定的socket地址的长度
 成功返回0，失败返回-1
 */
-int bind(int sockfd, const struct sockaddr* my_addr, socklen_t addrlen)
+int bind(int sockfd, const struct sockaddr* my_addr, socklen_t addrlen);
 ```
 ### f.监听socket
 创建监听队列存放待处理的客户连接
@@ -147,7 +147,7 @@ int bind(int sockfd, const struct sockaddr* my_addr, socklen_t addrlen)
 sockfd：被监听的socket
 backlog：监听队列的长度，典型值是5
 */
-int listen(int sockfd, int backlog)
+int listen(int sockfd, int backlog);
 ```
 ### g.接收连接
 从listen的监听队列中获取一个连接
@@ -160,7 +160,7 @@ addr：用来获取被接受连接的远端socket地址
 addrlen：指出远端socket地址的长度
 失败时返回-1
 */
-int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 ```
 ### h.发起连接
 ``` C++
@@ -172,7 +172,7 @@ serv_addr：服务器监听的socket地址
 addrlen：是个地址的长度
 成功返回0
 */
-int connect(int sockfd, const struct sockaddr* serv_addr, socklen_t addrlen)
+int connect(int sockfd, const struct sockaddr* serv_addr, socklen_t addrlen);
 ```
 ### i.关闭连接
 并非立即关闭连接，而是将fd的引用计数-1，只有当fd的引用计数为0时，才会真正关闭。<br>
@@ -182,7 +182,7 @@ int connect(int sockfd, const struct sockaddr* serv_addr, socklen_t addrlen)
 /*
 fd：待关闭的连接
 */
-int close(int sockfd)
+int close(int sockfd);
 ```
 
 无论如何都要立即终止连接，可使用：<br>
@@ -195,7 +195,7 @@ howto：
   SHUT_WR：关闭sockfd上写的一半，缓冲区中的数据会在真正关闭连接之前全部发送出去，程序不能再对其进行写操作，这种情况下，socket处于半关闭状态
   SHUT_RDWR：读写同时关闭
 */
-int shutdown(int sockfd, int howto)
+int shutdown(int sockfd, int howto);
 ```
 ### j.数据读写
 文件读写操作read()和write()同样适用socket，socket接口提供了专用的系统调用<br>
@@ -208,7 +208,7 @@ len：读缓冲区的大小
 flags：通常为0，具体见后图
 调用成功时返回实际读取到的长度，返回0表示对方已经关闭了连接，-1表示出错
 */
-ssize_t recv(int sockfd, void *buf, size_t len, int flags)
+ssize_t recv(int sockfd, void *buf, size_t len, int flags);
 
 /*
 sockfd：需要写入的文件描述符
@@ -216,7 +216,7 @@ buf：写缓冲区
 len：写缓冲区的长度
 flags：通常为0，具体见后图
 */
-ssize_t send(int sockfd, const void *buf, size_t len, int flags)
+ssize_t send(int sockfd, const void *buf, size_t len, int flags);
 ```
 #### UDP数据读写
 TCP连接也可以调用，调用时地址填NULL
@@ -229,7 +229,7 @@ flags：通常为0，具体见后图
 src_addr：发送端socket地址
 addrlen：发送端socket地址长度
 */
-ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr* src_addr, socklen_t * addrlen)
+ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr* src_addr, socklen_t * addrlen);
 
 /*
 sockfd：需要写入的文件描述符
@@ -239,7 +239,7 @@ flags：通常为0，具体见后图
 dest_addr：接收端socket地址
 addrlen：接收端socket地址长度
 */
-ssize_t sendto(int sockfd, void *buf, size_t len, int flags, struct sockaddr* dest_addr, socklen_t * addrlen)
+ssize_t sendto(int sockfd, void *buf, size_t len, int flags, struct sockaddr* dest_addr, socklen_t * addrlen);
 ```
 #### 通用数据读写
 TCP/UDP都适用<br>
@@ -251,14 +251,14 @@ sockfd：需要读取的文件描述符
 msg：见后
 flags：通常为0，具体见后图
 */
-ssize_t recvmsg(int sockfd, struct msghdr* msg, int flags)
+ssize_t recvmsg(int sockfd, struct msghdr* msg, int flags);
 
 /*
 sockfd：需要写入的文件描述符
 msg：见后
 flags：通常为0，具体见后图
 */
-ssize_t sendmsg(int sockfd, struct msghdr* msg, int flags)
+ssize_t sendmsg(int sockfd, struct msghdr* msg, int flags);
 
 struct msghdr
 {
@@ -286,7 +286,7 @@ struct iovec
 sockfd：待判断的socket文件描述符
 返回1时就可以利用带MSG_OOB标志的recv调用来接收带外数据，如果不是就返回0
 */
-int sockatmark(int sockfd)
+int sockatmark(int sockfd);
 ```
 ### l.地址信息函数
 用于获取一个socket连接的本端socket地址或远端socket地址，可以使用下面两个系统调用<br>
@@ -297,13 +297,13 @@ sockfd：需要获取的socket对应的文件描述符
 address：获取到的地址将存储于address指定的内存
 address_len：address的长度
 */
-int getsockname(int sockfd, struct sockaddr* address, socklen_t * address_len)
+int getsockname(int sockfd, struct sockaddr* address, socklen_t * address_len);
 /*
 sockfd：需要获取的socket对应的文件描述符
 address：获取到的地址将存储于address指定的内存
 address_len：address的长度
 */
-int getpeername(int sockfd, struct sockaddr* address, socklen_t * address_len)
+int getpeername(int sockfd, struct sockaddr* address, socklen_t * address_len);
 ```
 ### m.socket选项
 用来读取和设置socket文件描述符属性的方法<br>
@@ -317,8 +317,8 @@ option_value：被操作选项的值
 option_len：被操作选项的值的长度，restrict表示该指针是访问对象的唯一指针
 成功时返回0，失败返回-1
 */
-int getsockopt(int sockfd, int level, int option_name, void* option_value, socklen_t* restrict option_len)
-int setsockopt(int sockfd, int level, int option_name, const void* option_value, socklen_t option_len)
+int getsockopt(int sockfd, int level, int option_name, void* option_value, socklen_t* restrict option_len);
+int setsockopt(int sockfd, int level, int option_name, const void* option_value, socklen_t option_len);
 ```
 ![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/009.png)
 SO_REUSEADDR：设置该选项强制使用被处于TIME_WAIT状态的连接占用的socket地址<br>
@@ -353,14 +353,14 @@ struct hostent
 /*
 name：主机名
 */
-struct hostent* gethostbyname(const char* name)
+struct hostent* gethostbyname(const char* name);
 
 /*
 addr：目标主机的IP地址
 len：addr所指IP地址的长度
 type：addr所指IP地址的类型（AF_INET:IPV4或AF_INET6:IPV6）
 */
-struct hostent* gethostbyaddr(const void* addr, size_t len, int type)
+struct hostent* gethostbyaddr(const void* addr, size_t len, int type);
 ```
 ``` C++
 #include <netdb.h>
@@ -368,13 +368,13 @@ struct hostent* gethostbyaddr(const void* addr, size_t len, int type)
 name：指定目标服务的名字
 proto：指定服务类型
 */
-struct servent* getservbyname(const char* name, const char* proto)
+struct servent* getservbyname(const char* name, const char* proto);
 
 /*
 port：指定目标服务对应的端口号
 proto：指定服务类型
 */
-struct servent* getservbyport(int port, const char* proto)
+struct servent* getservbyport(int port, const char* proto);
 
 struct servent
 {
@@ -402,7 +402,7 @@ socketpair可以创建双向管道
 domain：只能用UNIX本地域协议族AF_UNIX，只能在本地使用这个双向管道
 type、protocol和socket函数相同，fd[2]和pipe相同
 */
-int socketpair(int domain, int type, int protocol, int fd[2])
+int socketpair(int domain, int type, int protocol, int fd[2]);
 ```
 ### dup函数和dup2函数
 把标准输入重定向到一个文件或把标准输出重定向到一个网络连接<br>
@@ -432,8 +432,8 @@ vector：iovec数组，iovec描述一块内存
 count：vector数组的长度
 调用成功返回读/写的字符数，失败返回-1
 */
-ssize_t readv(int fd, const struct iovec* vector, int count)
-ssize_t writev(int fd, const struct iovec* vector, int count)
+ssize_t readv(int fd, const struct iovec* vector, int count);
+ssize_t writev(int fd, const struct iovec* vector, int count);
 ```
 ### sendfile函数
 在两个文件描述符中直接传递数据，完全在内核中操作，从而避免了内核缓冲区和用户缓冲区之间的数据拷贝，效率很高<br>
@@ -446,7 +446,7 @@ offet：指定读入文件流的位置
 count：指定传输的字节数
 调用成功返回传输字节数，调用失败返回-1
 */
-sszie_t sendfile(int out_fd, int in_fd, off_t* offset, size_t count)
+sszie_t sendfile(int out_fd, int in_fd, off_t* offset, size_t count);
 ```
 ### mmap和munmap函数
 mmap函数用于申请一段内存，是一种内存映射文件的方法，也可用于进程间通信，munmap用于释放mmap申请的内存<br>
@@ -461,7 +461,7 @@ fd：被映射文件对应的文件描述符
 offset：指定从文件的何处开始映射
 调用成功返回指向目标区域的指针，失败返回-1
 */
-void* mmap(void* start, size_t length, int prot, int flags, int fd, off_t offset)
+void* mmap(void* start, size_t length, int prot, int flags, int fd, off_t offset);
 ```
 flags的常用值以及含义：<br>
 ![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/010.png)
@@ -477,7 +477,7 @@ len：指定移动数据的长度
 flags：控制数据如何移动，可以设置为下图某些值的按位或
 fd_in和fd_out必须至少有一个是管道文件描述符，调用成功返移动的字节数，返回0表示没有数据移动，失败返回-1
 */
-ssize_t splice(int fd_in, loff_t* off_in, int fd_out, loff_t* off_out, size_t len, unsigned int flags)
+ssize_t splice(int fd_in, loff_t* off_in, int fd_out, loff_t* off_out, size_t len, unsigned int flags);
 ```
 ![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/011.png)
 ### tee函数
@@ -491,7 +491,7 @@ len：复制的字节数
 flags：同splice函数
 调用成功返回复制的字节数，失败返回-1
 */
-sszie_t tee(int fd_in, int fd_out, size_t len, unsigned int flags)
+sszie_t tee(int fd_in, int fd_out, size_t len, unsigned int flags);
 ```
 ### fcntl函数
 提供对文件描述符的各种操作控制
@@ -502,7 +502,7 @@ fd：被操作的文件描述符
 cmd：指定执行何种类型的操作
 第三个参数可选
 */
-int fcntl(int fd, int cmd, ... )
+int fcntl(int fd, int cmd, ... );
 ```
 ![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/012.png)<br>
 通常用作将一个文件描述符设置为非阻塞的：
@@ -527,13 +527,13 @@ Linux下每一个进程都隶属于一个进程组，进程除了PID信息外，
 每个进程组都有一个首领进程，其PGID=PID，进程组一直存在，直到其中的所有进程都退出或加入其它进程组
 ``` C++
 #include <unistd.h>
-pid_t getpgid(pid_t pid)
+pid_t getpgid(pid_t pid);
 /*
 把pid的PGID设置为pgid，当pid为0时，表示设置当前进程
 只能设置自己的或其子进程的PGID
 调用成功返回0，失败返回-1
 */
-int setpgid(pid_t pid, pid_t pgid)
+int setpgid(pid_t pid, pid_t pgid);
 ```
 #### 会话
 一些有关联的进程组将形成一个会话，用下面的函数创建会话：
@@ -554,9 +554,9 @@ Linux未提供会话ID的概念，Linux认为它等于会话首领进程所在�
 获取当前进程的工作目录、改变进程的工作目录、改变进程根目录的函数分别是，只有特权进程才能改变根目录：
 ``` C++
 #include <unistd.h>
-char* getcwd(char* buf, size_t size)
-int chdir(const char* dir)
-int chroot(const char* path)
+char* getcwd(char* buf, size_t size);
+int chdir(const char* dir);
+int chroot(const char* path);
 ```
 ### 服务器程序后台化
 ``` C++
@@ -564,6 +564,7 @@ int chroot(const char* path)
 /*
 nochdir：传0时根目录被置为/
 noclose：传0时标准输入、标准输出、标准错误被重定向到/dev/null
+*/
 int daemon(int nochdir, int noclose)
 ```
 ## 六.高性能服务器程序框架
