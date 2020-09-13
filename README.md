@@ -654,7 +654,7 @@ struct epoll_event {
 };
 ```
 表示epoll事件类型的宏是在poll对应的宏前加E，epoll有额外的事件类型EPOLLET和EPOLLONESHOT。data用于存储用户数据，定义如下：
-``` C+
+``` C++
 typedef union epoll_data {
     void *ptr;
     int fd;
@@ -662,4 +662,22 @@ typedef union epoll_data {
     uint64_t u64;
 } epoll_data_t;
 ```
-四个事件中用的最多的是fd，指定事件从属的目标描述符。如果要将文件描述符和用户数据关联，可以使用ptr指向的用户数据中包含fd。
+四个事件中用的最多的是fd，指定事件从属的目标描述符。如果要将文件描述符和用户数据关联，可以使用ptr指向的用户数据中包含fd。<br>
+epoll系列系统调用主要接口是epoll_wait函数，它在一段超时时间内等待一组文件描述符上的事件，原型如下：
+```  C++
+#include <sys/epoll.h>
+/*
+events：检测到事件后就将所有的就绪事件从内核事件表复制到events函数中
+maxevents：指定最多监听多少个事件
+*/
+int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
+```
+### LT和ET模式
+epoll对文件描述符的操作有两种，LT（Level Trigger，电平触发）和ET（Edge Trigger，边沿触发），LT模式时epoll相当于一个高效的poll，ET是epoll的高效工作模式。<br>
+对于LT模式，当epoll_wait检测到其上有事件发生并将此事件通知给应用程序后，应用程序可以不立即处理该事件，当应用程序下一次调用epoll_wait时，epoll_wait还会向应用程序通知该事件，直到该事件被处理<br>。
+对于ET模式，当epoll_wait检测到其上有事件发生并将此事件通知给应用程序后，应用程序必须立即处理该事件，后续epoll_wait不再通知此事件。<br>
+可见ET模式很大程度上降低了同一个epoll事件被触发的次数，因此效率高于LT。[示例代码](https://github.com/CodeDrugger/HPLSP/blob/master/code/etlt.cpp)<br>
+### EPOLLONESHOT
+一个线程或进程读取完socket上的数据并开始处理时，如果该socket上又有新的数据可读，此时另一个线程或进程被唤醒来读取数据，就会出现两个线程或进程操作同一个socket的局面，为了避免这种情况，可以用epoll的EPOLLONWSHOT解决。
+### 三组I/O复用函数的比较
+![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/014.png)<br>
