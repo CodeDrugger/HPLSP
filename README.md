@@ -582,3 +582,84 @@ int daemon(int nochdir, int noclose)
 a.池：线程池、进程池<br>
 b.数据复制：避免不必要的数据复制<br>
 c.上下文切换和锁：减少线程、进程切换的开销，减少锁的使用，降低锁的粒度<br>
+## I/O复用
+### select系统调用
+在一段时间内，监听用户感兴趣的文件描述符上的可读、可写、异常事件。
+``` C++
+#include <sys/select.h>
+/*
+nfds：指定被监听的文件描述符总数
+readfds、writefds、writefds分别指向可读、可写、异常事件对应的文件描述符集合，程序返回时修改他们通知应用程序 哪些文件描述符已就绪
+timeout：超时时间
+调用成功返回就绪的文件描述符数，失败返回-1
+*/
+int select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* writefds, struct timeval* timeout);
+```
+fd_set时long类型数组，每一个元素的每一位表示一个文件描述符，访问通常通过下列宏完成：
+``` C++
+#include <sys/select.h>
+FD_ZEROS(fd_set *fdset); //清除fdset的所有位
+FD_SET(int fd, fd_set *fdset); //设置fd
+FD_CLR(int fd, fd_set *fdset); //清除fd
+int FD_ISSET(int fd, fd_set *fdset); //检测fdset的是否设置fd
+
+struct timeval {
+    long tv_sec; //秒
+    long tv_usec; //微秒
+};
+```
+### poll系统调用
+与select类似，也是指定时间内轮询一定数量的文件描述符，测试其中是否有就绪者。
+``` C++
+#include <poll.h>
+/*
+nfds：fds的大小
+timeout：单位为毫秒的超时时间
+int poll(struct pollfd *fds, nfds_t nfds, int timeout);
+```
+pollfd结构如下，它指定所有我们感兴趣的文件描述符上发生的可读、可写、异常事件。
+``` C++
+struct pollfd {
+    int fd;
+    short events; //注册的时间
+    short revents; //实际发生的事件，有内核填充，通知应用程序fd上实际发生了哪些事件
+};
+```
+events告诉poll监听fd上的哪些事件，它是一系列事件的按位或，如下图：
+![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/013.png)<br>
+### epoll系统调用
+epoll是Linux特有的I/O复用函数，epoll把用户关心的文件描述符放在内核的一个时间列表里，epoll需要一个额外的文件描述符，来唯一标识内核中的事件表，这个文件描述符使用如下函数创建：
+``` C++
+#include <sys/epoll.h>
+/*
+size：目前不起作用，只是给内核一个提示，告诉它事件表要多大
+返回的文件描述符用作其他epoll系统调用的第一个参数，指定要访问的内核事件表
+*/
+int epoll_create(int size);
+```
+用下面的函数操作内核事件表：
+``` C++
+/*
+op：操作类型，包括EPOLL_CTL_ADD（往事件表中注册fd上的事件）、EPOLL_CTL_MOD（修改fd上的注册事件）、EPOLL_CTL_DEL（删除fd上的注册事件）
+fd：要操作的文件描述符
+调用成功返回0，失败返回-1
+*/
+int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event);
+```
+event指定事件，epoll_event定义如下：
+``` C++
+struct epoll_event {
+    __uint32_t events; //epoll事件
+    epoll_data_t data; //用户数据
+};
+```
+表示epoll事件类型的宏是在poll对应的宏前加E，epoll有额外的事件类型EPOLLET和EPOLLONESHOT。data用于存储用户数据，定义如下：
+``` C+
+typedef union epoll_data {
+    void *ptr;
+    int fd;
+    uint32_t u32;
+    uint64_t u64;
+} epoll_data_t;
+```
+四个事件中用的最多的是fd，指定事件从属的目标描述符。如果要将文件描述符和用户数据关联，可以使用ptr指向的用户数据中包含fd。
