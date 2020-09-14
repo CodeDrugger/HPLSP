@@ -615,6 +615,7 @@ struct timeval {
 /*
 nfds：fds的大小
 timeout：单位为毫秒的超时时间
+*/
 int poll(struct pollfd *fds, nfds_t nfds, int timeout);
 ```
 pollfd结构如下，它指定所有我们感兴趣的文件描述符上发生的可读、可写、异常事件。
