@@ -682,3 +682,4 @@ epoll对文件描述符的操作有两种，LT（Level Trigger，电平触发）
 一个线程或进程读取完socket上的数据并开始处理时，如果该socket上又有新的数据可读，此时另一个线程或进程被唤醒来读取数据，就会出现两个线程或进程操作同一个socket的局面，为了避免这种情况，可以用epoll的EPOLLONWSHOT解决。
 ### 三组I/O复用函数的比较
 ![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/014.png)<br>
+
