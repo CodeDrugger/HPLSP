@@ -582,7 +582,7 @@ int daemon(int nochdir, int noclose)
 a.池：线程池、进程池<br>
 b.数据复制：避免不必要的数据复制<br>
 c.上下文切换和锁：减少线程、进程切换的开销，减少锁的使用，降低锁的粒度<br>
-## I/O复用
+## 七.I/O复用
 ### select系统调用
 在一段时间内，监听用户感兴趣的文件描述符上的可读、可写、异常事件。
 ``` C++
@@ -692,3 +692,34 @@ connect默认是阻塞的，在需创建大量线程向另一主机发送数据�
   - 调用select来等待连接建立成功完成；<br>
     - 如果select 返回0，则表示建立连接超时。我们返回超时错误给用户，同时关闭连接，以防止三路握手操作继续进行下去。<br>
     - 如果select 返回大于0的值，则需要检查套接口描述符是否可写，如果套接口描述符可写，则我们可以通过调用getsockopt来得到套接口上待处理的错误（SO_ERROR）。如果连接建立成功，这个错误值将是0；如果建立连接时遇到错误，则这个值是连接错误所对应的errno值（比如：ECONNREFUSED,ETIMEDOUT等）。<br>
+### 一个端口同时处理TCP和UDP
+[示例代码](https://github.com/CodeDrugger/HPLSP/blob/master/code/tcpudp.cpp)<br>
+## 八.信号
+### Linux信号概述
+一个进程向其他进程发送信号的API是kill函数
+``` C++
+#include <sys/type.h>
+#include <signal.h>
+/*
+pid > 0：信号发送给PID是pid的进程
+pid = 0：信号发送给本进程组内的其他进程
+pid = -1：信号发送给除init进程之外的所有进程，但需要有权限
+pid < -1：信号发送给组ID为-pid的进程组中的所有成员
+调用成功返回0，失败返回-1，errno取值：EINVAL（无效信号）、EPERM（没有权限发送信号）、ESRCH（目标进程或进程组不存在）
+*/
+int kill(pid_t pid, int sig);
+```
+目标进程在收到一个信号后，需要定义一个接收函数处理之，处理函数的原型为：
+``` C++
+#include <signal.h>
+typedef void (*__sighandler_t) (int);
+```
+整数类型的参数用来指示信号类型，信号处理函数应该是可重入的，否则容易引起竞态条件。<br>
+除了用户定义的信号处理函数，还有其他两种处理方式：
+``` C++
+#include <bits/signum.h>
+#define SIG_DFL ((__sighandler_t) 0)
+#define SIG_IGN ((__sighandler_t) 1)
+```
+SIG_IGN表示忽略目标信号，SIG_DFL表示使用型号的默认处理方式，默认处理方式有结束进程（Term），忽略信号（Ign），结束进程并生成转储文件（Core），暂停进程（Stop），继续进程（Cont）。<br>
+如果程序在执行处于阻塞状态的系统调用时收到了信号，并且我们为该信号设置了信号处理函数，则默认情况下系统调用将被中断，errno被置为EINTR，可以使用sigaction函数为信号设置SA_RESTART标志以重启被该型号中断的系统调用。<br>
