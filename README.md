@@ -712,7 +712,7 @@ int kill(pid_t pid, int sig);
 目标进程在收到一个信号后，需要定义一个接收函数处理之，处理函数的原型为：
 ``` C++
 #include <signal.h>
-typedef void (*__sighandler_t) (int);
+typedef void (*_sighandler_t) (int);
 ```
 整数类型的参数用来指示信号类型，信号处理函数应该是可重入的，否则容易引起竞态条件。<br>
 除了用户定义的信号处理函数，还有其他两种处理方式：
@@ -723,3 +723,81 @@ typedef void (*__sighandler_t) (int);
 ```
 SIG_IGN表示忽略目标信号，SIG_DFL表示使用型号的默认处理方式，默认处理方式有结束进程（Term），忽略信号（Ign），结束进程并生成转储文件（Core），暂停进程（Stop），继续进程（Cont）。<br>
 如果程序在执行处于阻塞状态的系统调用时收到了信号，并且我们为该信号设置了信号处理函数，则默认情况下系统调用将被中断，errno被置为EINTR，可以使用sigaction函数为信号设置SA_RESTART标志以重启被该型号中断的系统调用。<br>
+### 信号函数
+要为一个信号设置处理函数，可以使用signal函数调用：
+``` C++
+#include <signal.h>
+/*
+sig：指出要捕获的信号类型
+_handler：指定信号sig的处理函数
+调用成功返回函数指针，该返回值是前一次调用signal传入的函数指针，或者是信号sig对应的默认处理函数指针SIG_DEF，出错返回SIG_ERR。
+*/
+_sighandler_t signal(int sig, _sighandler_t _handler);
+```
+更健壮的接口是：
+``` C++
+#include <signal.h>
+/*
+sig：指出要捕获的信号类型
+act：指定新的信号处理方式
+oact：输出信号先前的处理方式（如果不为NULL的话）
+成功返回0，失败返回-1
+*/
+int sigaction(int sig, const struct sigaction* act, struct sigaction* oact);
+
+/*
+sa_handler：指定信号处理函数
+sa_mask：设置进程的信号掩码（在原有掩码上增加）
+sa_flags：设置程序收到信号时的行为，取值见后图
+sa_restorer：已过时，勿用
+*/
+struct sigaction {
+    _sighandler_t sa_handler;
+    _sigset_t sa_mask;
+    int sa_flags;
+    void (*sa_restorer) (void);
+}
+```
+![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/015.png)<br>
+### 信号集
+#### 信号集函数
+Linux使用sigset_t表示一组信号，定义如下：
+``` C++
+#include <bits/sigset.h>
+#define _SIGSET_NWORDS (1024 / (8 * sizeof(unsigned long int)))
+typedef struct {
+    unsigned long int __val[_SIGSET_NWORDS];
+} __sigset_t;
+```
+sigset_t其实是一个长整型数组，数组的每个元素的每一位表示一个信号，定义方式与fd_set类似，Linux提供了一组函数来设置、修改、删除、查询信号集：
+``` C++
+#include <signal.h>
+int sigemptyset(sigset_t* _set); //清空信号集
+int sigfillset(sigset_t* _set); // 设置信号集中的所有信号
+int sigaddset(sigset_t* _set, int _signo); //将信号signo添加到信号集中
+int sigdelset(sigset_t* _set, int _signo); //将信号signo从信号集中删除
+int sigismember(sigset_t* _set, int _signo); //测试信号signo是否在信号集中
+```
+#### 进程信号掩码
+可以利用sigaction结构体的sa_mask成员来设置进程的信号掩码，也可以使用如下函数设置：
+``` C++
+/*
+_how：指定设置进程掩码的方式，取值为SIG_BLOCK（新掩码是现有掩码和_set的并集）、SIG_UNBLOCK（设置后_set将不被屏蔽）、SIG_SETMASK（设置为_set）
+_set：新的信号掩码
+_oset：原信号掩码，如果不为NULL的话
+成功返回0，失败返回-1
+*/
+int sigprocmask(int _how, _const sigset_t* _set, sigset_t* _oset);
+```
+#### 被挂起的信号
+设置进程掩码后，被屏蔽的信号将不能被进程接收，如果给进程发送一个被屏蔽的信号，则操作系统将该信号设置为进程的一个被挂起的信号，如果对被挂起的信号取消屏蔽，则它能立即被进程接收到，如下函数能获取进程当前被挂起的信号：
+``` C++
+#include <signal.h>
+/*
+set：用于保存被挂起的信号集
+成功返回0，失败返回-1
+*/
+int sigpending(sigset_t* set);
+```
+进程多次接收到同一个被挂起的信号，sigpending也只能反映一次，并且修改掩码也只能使该信号被触发一次
+### 统一事件源
