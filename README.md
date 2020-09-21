@@ -817,4 +817,8 @@ send函数的MSG_NOSIGNAL标志可以禁止触发SIGPIPE信号。
 #### SIGURG
 内核通知应用程序带外数据到达主要有两种方法，一种是是I/O复用中报告给应用程序的异常事件，另一种就是SIGURG信号。
 ## 定时器
- 
+alarm函数用来在一段时间后向当前进程发送SIGALRM信号
+``` C++
+#include <unistd.h>
+unsigned int alarm(unsigned int seconds);
+```
