@@ -822,3 +822,34 @@ alarm函数用来在一段时间后向当前进程发送SIGALRM信号
 #include <unistd.h>
 unsigned int alarm(unsigned int seconds);
 ```
+## 多进程编程
+### fork系统调用
+``` C++
+#include <sys/types.h>
+#include <unistd.h>
+pid_t fork(void);
+```
+该函数的每次调用都返回2次，在父进程中返回的是子进程的PID，子进程中返回0，调用失败返回-1。<br>
+fork复制当前进程，在内核进程表中创建一个新的进程项，指针、标志寄存器等都与原进程相同，进程的PPID被赋值为原进程的PID，信号位图被清除；父子进程的代码完全相同，子进程还会复制数据（堆数据，栈数据，静态数据），数据的复制采用写时复制，任一进程对数据执行了写操作时，复制才会发生（首先发生缺页中断，然后操作系统给子进程分配内存复制父进程的数据），创建子进程后，父进程中打开的文件描述符默认在子进程中也是打开的，文件描述符引用计数加1，父进程的用户根目录，当前工作目录等变量的引用计数也会加1。<br>
+### exec系列系统调用
+有时我们需要在子进程中执行其他程序，即替换当前进程映像，需要使用exec系列函数：
+``` C++
+#include <unistd.h>
+extern char** environ;
+
+/*
+path：指定可执行文件的完整路径
+file：接受文件名，该文件的具体位置则在环境变量PATH中搜寻
+arg：接受可变参数
+argv：接受参数数组
+arg和argv都会被传递给新程序（path或file指定的程序）的main函数
+envp：用于设置新程序的环境变量，如果未设置，将使用全局变量environ指定的环境变量
+*/
+int execl(const char* path, const char* arg, ...);
+int execlp(const char* file, const char* arg, ...);
+int execle(const char* path, const char* arg, ..., char* const envp[]);
+int execv(const char* path, const char* arg[]);
+int execvp(const char* file, const char* arg[]);
+int execve(const char* path, const char* arg[], char* const envp[]);
+```
+通常exec系列函数是不返回的，除非出错，出错时返回-1，如果没出错，exec系列函数之后的代码都会再执行，因为此时原程序已经被exec指定的程序完全替换（包括代码和数据）。exec不会关闭原程序打开的文件描述符，除非该文件描述符设置了类似SOCK_CLOEXEC的属性。
