@@ -889,6 +889,13 @@ sem_flags：指定一组标志，格式与含义都和open的mode参数相同
 int semget(ket_t key, int num_sems, int sem_flags);
 ```
 #### semop系统调用
+每个信号量在内核中关联一些变量：
+``` C++
+unsigned short semval; //信号量的值
+unsigned short semzcnt; //等待信号量值变为0的进程数量
+unsigned short semncnt; //等待信号量值增加的进程数量
+pid_t sempid; //最后一次执行semop操作的进程ID
+```
 改变信号量的值，即P、V操作，定义如下：
 ``` C++
 #include <sys/sem.h>
@@ -908,4 +915,9 @@ short int sem_flg;
 ```
 sem_num是信号量集中信号的编号，从0开始；<br>
 sem_op指定操作类型，其可选值为正整数、0、负整数，操作行为又受sem_flg的影响，sem_flg可选值有IPC_NOWAIT（无论是否操作成功，立即返回）、SEM_UNDO（当进程退出时取消操作）。具体行为如下：
-- 如果sem_op大于0，semop将被操作的信号量的值加sem_op，该操作要求进程对信号量有写权限，
+- 如果sem_op大于0，semop将被操作的信号量的值加sem_op，该操作要求进程对信号量有写权限
+- 如果sem_op等于0，表示这是一个等待0的操作，该操作要求进程对信号量有读权限，如果此时信号量的值为0，则sem_op立即返回，否则semop失败返回（IPC_NOWAIT）或阻塞等待信号量变为0，semzcnt加1进程开始睡眠直到下列三个条件之一发生：
+  - 信号量的值semval变为0，semzcnt的值被减1
+  - 被操作的信号量集被进程移除，此时semop调用失败返回，errno被置为EIDRM
+  - 调用被信号中断，此时semop调用失败返回，errno被置为EINTR，semzcnt的值被减1
+- 如果sem_op小于0，表示对信号量进行减操作，以期望获得该信号量，该操作要求进程对信号量有写权限
