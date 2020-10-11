@@ -921,3 +921,120 @@ sem_op指定操作类型，其可选值为正整数、0、负整数，操作行�
   - 被操作的信号量集被进程移除，此时semop调用失败返回，errno被置为EIDRM
   - 调用被信号中断，此时semop调用失败返回，errno被置为EINTR，semzcnt的值被减1
 - 如果sem_op小于0，表示对信号量进行减操作，以期望获得该信号量，该操作要求进程对信号量有写权限
+
+
+num_sem_ops指定要执行的操作个数，即sem_ops数组中元素的个数。
+#### semctl系统调用
+semclt系统调用允许调用者对信号量进行直接控制。定义如下：
+``` C++
+#include <sys/sem.h>
+/*
+sem_id：semget返回的信号量集标识符
+sem_num：指定被操作的信号量在信号量集中的编号
+command：指定于要执行的命令
+int semctl(int sem_id, int sem_num, int command, ...);
+```
+### 共享内存
+最高效的进程间通信机制，但必须用其他手段同步进程对共享内存的访问。
+#### shmget系统调用
+shmget用于创建一段新的共享内存，或者获取一段已经存在的共享内存，定义如下：
+``` C++
+#include <sys/shm.h>
+/*
+key：用来标识一个全局唯一的共享内存
+size：指定共享内存的大小，单位是字节
+shmflg：含义与semget函数的semflg含义相同，多包含两个额外的标志
+SHM_HUGETLB：类似于mmap的MAP_HUGETLB，系统将使用大页面为共享内存分配空间
+SHM_NORESERVE：类似于mmp的MAP_NORESERVE标志，不为共享内存保留交换分区，这样当物理内存不足时，对该共享内存执行写操作将触发SIGSEGV信号
+调用成功返回正整数，即共享内存的标识符，失败返回-1，并置errno
+*/
+int shmget(key_t key, size_t size, int shmflg);
+```
+#### shmat和shmdt系统调用
+共享内存被创建/获取之后，我们不能立即访问它，而是需要现将它关联到进程的地址空间中，使用完共享内存后，我们也需要将它从进程的地址空间中分离，这两项任务分别由shmat和shmdt完成。
+``` C++
+#include <sys/shm.h>
+/*
+shm_id：是由shmget返回的共享内存标识符
+shm_addr：指定将共享内存关联到进程的哪块地址，最终结果受到shmflg的影响
+调用成功返回关联到的地址，失败返回-1
+void* shmat(int shm_id, const void* shm_addr, int shmflg);
+int shmdt(const void* shm_addr);
+```
+如果shm_addr为NULL，则被关联的地址由操作系统选择，这是推荐的做法，以确保可移植性。
+如果shm_addr非空，并且SHM_RND为设置，则共享内存会被关联到addr指定的地址处
+如果shm_addr非空，并且设置了SHM_RND，则被关联的地址为[shm_addr - (shm_addr % SHMLBA)]，SHMLBA在LINUX中为一个页面的大小
+shmflg还可以设置为SHM_RDONLY，即只能读取共享内存中的内容
+shmflg还可以设置为SHM_REMAP，如果shmaddr已被关联，则重新关联
+shmflg还可以设置为SHM_EXEC，指定对共享内存段的执行权限，对于共享内存来说，执行权限和读权限是一样的
+#### shmctl系统调用
+shmctl用于控制共享内存的某些属性，定义如下：
+``` C++
+#include <sys/shm.h>
+/*
+shm_id：shmget返回的信号量集标识符
+command：指定于要执行的命令
+int semctl(int sem_id, int command, struct shmid_ds* buf);
+```
+### 消息队列
+是在两个进程间传递二进制数据块的有效方式，每个数据块都有一个特定的类型，接收方可以根据类型有选择地接收数据，而不一定像管道和命名管道那样必须以先进先出的方式接收数据。
+#### msgget系统调用
+msgget系统调用用于创建一个消息队列，或者获取一个已有的消息队列，定义如下：
+``` C++
+#include <sys/msg.h>
+/*
+key：用来标识一个全局唯一的消息队列
+shmflg：含义与semget函数的semflg含义相同
+调用成功返回一个正整数，即消息队列的标识符，失败返回-1，并设置errno
+int msgget(key_t key, int msgflg);
+```
+#### msgsend系统调用
+msgsend把一条消息添加到消息队列中，定义如下：
+#include <sys/msg.h>
+/*
+msgid：由msgget返回的消息队列标识符
+msg_ptr：指向一个准备发送的消息，消息必须被定义为如下类型
+msg_sz：mtext的长度，可以为0
+msgflg：控制msgsend的行为，通常只能取IPC_NOWAIT，即非阻塞形式发送，队列已满立即返回，未设置时阻塞
+int msgsend(int msgid, const void* msg_ptr, size_t msg_sz, int msgflg);
+
+struct msgbuf {
+    long mtype; //消息类型 正整数
+    char mtext[512]; //消息数据
+}
+```
+#### msgrcv系统调用
+msgrcv系统调用从消息队列中获取消息，定义如下：
+``` C++
+#include <sys/msg.h>
+/*
+msgid：由msgget返回的消息队列标识符
+msg_ptr：用于存储接收的消息
+msg_sz：数据部分的长度
+msgtype：等于0，读取消息队列中的第一条消息；大于0，读取第一个消息类型为msgtype的消息；小于0，读取第一条类型值比msgtype的绝对值小的消息
+msgflg：IPC_NOWAIT，如果消息队列中没有数据，立即返回并设置errno为ENOMSG；MSG_EXCEPT，如果msgtype大于0，则接收第一个非msgtype类型的消息；MSG_NOERROR，数据部分的长度超过msg_sz，截断
+int msgrcv(int msgid, void* msg_ptr, size_t msg_sz, long int msgtype, int msgflg);
+```
+阻塞状态的调用还能被如下两种异常中断：<br>
+消息队列被移除，立即返回并设置errno为EIDRM<br>
+程序接收到信号，立即返回并设置errno为EINTR<br>
+#### msgctl系统调用
+msgctl系统调用控制消息队列的某些属性，定义如下：
+``` C++
+#include <sys/msg.h>
+int msgctl(int msgid, int command, struct msgid_ds* buf);
+```
+### IPC命令
+上述三种进程间通信的方式都是用一个全局唯一的键值来描述一个共享资源，当程序调用semget，shmget，msgget时，就创建了一个共享资源的实例，linux提供了ipcs命令，以观察系统上拥有哪些共享资源实例。
+## 多线程编程
+### 线程模型
+线程可分为内核线程和用户线程，内核线程运行在内核，由内核调度，用户线程运行在用户空间，由线程库调度，当一个内核线程获得CPU使用权时，就加载并运行一个用户线程，内核线程相当于用户线程运行的容器，一个进程可以拥有M个内核线程和N个用户线程，其中M<=N，并且在一个系统的所有进程中，M和N的比值是固定的，按照该比值，线程的实现方式可分为完全在用户空间实现、完全由内核调度、双层调度。<br>
+完全在用户空间实现的线程无需内核支持，内核甚至不知道这些线程的存在，线程库负责管理所有的执行线程，如优先级、时间片。线程库利用longjump来切换线程，使它们看起来是并发执行的，实际上内核仍然把整个进程作为最小单位进行调度，即N=1。优点是创建调度线程都无需内核干预，因此速度快，并且由于不占用额外的内核资源，因此创建很多线程也不会影响系统性能，缺点是多个线程无法在多个CPU上运行。<br>
+完全由内核调度的模式将创建、调度都交给了内核，与完全在用户空间实现相反，M:N=1:1<br>
+双层调度是前两种模式的混合体，不会过多消耗系统资源，线程切换速度也较快，也能在多核上运行。
+### 创建线程和结束线程
+创建一个线程的函数是pthread_create，定义如下：
+``` C++
+#include <pthread.h>
+int pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*strat_routine) (void*), void* arg);
+````
