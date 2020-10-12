@@ -1036,5 +1036,57 @@ int msgctl(int msgid, int command, struct msgid_ds* buf);
 创建一个线程的函数是pthread_create，定义如下：
 ``` C++
 #include <pthread.h>
+/*
+thread：新线程的标识符
+attr：用于设置新线程的属性，传NULL表示使用默认属性，具体后续讨论
+strat_routine：新线程运行的函数
+arg：新线程运行的函数的参数
+成功返回0，失败返回错误码
+*/
 int pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*strat_routine) (void*), void* arg);
+
+#include <bits/pthreadtypes.h>
+typedef unsigned long int pthread_t;
 ````
+线程被创建好后，内核就能调度内核线程来执行strat_routine所指向的函数，执行结束后最好调用如下函数，保证安全、干净地退出：
+``` C++
+#include <pthread.h>
+void pthread_exit(void* retval);
+```
+pthread_exit通过retval向线程的回收者传递其退出的信息，执行完之后不会返回到调用者，永远不会失败。<br>
+一个进程中的所有线程都可以调用pthread_join函数来挥回收其他线程，即等待其他线程结束，这类似于回收进程的wait和waitpid系统调用，定义为：
+``` C++
+#include <pthread.h>
+/*
+thread：目标线程的标识符
+retval：目标线程返回的推出信息
+该函数会一直阻塞，直到被回收的线程结束为止，调用成功返回0，失败返回错误码
+EDEADLK：可能产生死锁，如两个线程互相join或线程对自身join
+EINVAL：不可回收或有其他线程在回收
+ESRCH：目标线程不存在
+*/
+int pthread_join(pthread_t thread, voiod** retval);
+```
+有时我们想异常终止一个线程，即取消线程，用以下函数实现：
+``` C++
+#include <pthread.h>
+/*
+调用成功返回0，失败返回错误码
+*/
+int pthread_cancel(pthread_t thread);
+```
+接收到取消请求的线程可以决定是否允许被取消或如何取消，由下列函数实现：
+``` C++
+#include <pthread.h>
+/*
+state：有两个可选取值PTHREAD_CANCEL_ENABLE和PTHREAD_CANCEL_DISABLE
+*/
+int pthread_setcancelstate(int state, int* oldstate);
+
+/*
+type：有两个可选取值
+PTHREAD_CANCEL_ASYNCHRONOUS，即随时可以取消，接收到取消请求后立即行动
+PTHREAD_CANCEL_DEFERRED，延迟行动，直到调用了取消点函数中的一个pthread_join、pthread_testcancel、pthread_cond_wait、pthread_cond_timedwait、sem_wait、sig_wait
+最好使用pthread_testcancel设置取消点
+int pthread_setcanceltype(int type, int* oldtype);
+```
