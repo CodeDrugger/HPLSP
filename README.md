@@ -1090,3 +1090,50 @@ PTHREAD_CANCEL_DEFERRED，延迟行动，直到调用了取消点函数中的一
 最好使用pthread_testcancel设置取消点
 int pthread_setcanceltype(int type, int* oldtype);
 ```
+### POSIX信号量
+Liunx有两组信号量API，一组是之前的system V IPC信号量，另一组是要讨论的POSIX信号量，他们接口相似，但不能保证互换，常用的POSXI信号量函数是下面5个：
+``` C++
+#include <semaphore.h>
+int sem_init(sem_t* sem, int pshared, unsigned int value);
+int sem_destroy(sem_t* sem);
+int sem_wait(sem_t *sem);
+int trywait(sem_t* sem);
+int sem_post(sem_t* sem);
+```
+sem_init用于初始化一个未命名信号量，pshared参数指定信号量的类型，如果为0，就表示这个信号量是当前进程的局部信号量，否则该信号量就可以在多个进程间共享，value参数指定信号量的初始值。<br>
+sem_destroy函数用于销毁信号量，以释放其占用的内核资源，销毁正在被其他进程使用的信号量结果不可预期。<br>
+sem_wait函数以原子操作的方式将信号量的值减1，当信号量的值为0，则sem_wait将被阻塞，直到这个信号量具有非0值。<br>
+sem_trywait与sem_wait相似，不过它始终立即返回，不论被操作的信号量是否有非0值，相当于sem_wait的非阻塞版本，当信号量的值非0是，sem_trywait对信号量执行减1操作，当信号量的值为0时，它返回-1并置errno为EAGAIN。<br>
+sem_post函数将以原子操作将信号量的值加1，当信号量的值大于0时，其他正在调用sem_wait等待信号量的线程将被唤醒<br>
+上面这些函数成功返回0，失败返回-1并置errno。<br>
+### 互斥锁
+互斥锁可以用于保护关键代码段，以确保其独占式的访问，这点像一个二进制信号量，当进入关键代码段时，我们需要获得互斥锁并将其枷锁，这等价于二进制信号量的P操作，当离开关键代码段时，我们需要对互斥锁解锁，以唤醒其他等待该互斥锁的线程，这等价于二进制信号量的V操作。<br>
+#### 互斥锁的基础API
+主要有下列5个函数：
+``` C++
+#include <pthread.h>
+int pthread_mutex_init(pthread_mutex_t* mutex, const pthread_mutexattr_t* muetxattr);
+int pthread_mutex_destroy(pthread_mutex_t* mutex);
+int pthread_mutex_lock(pthread_mutex_t* mutex);
+int pthread_mutex_trylock(pthread_mutex_t* mutex);
+int pthread_mutex_unlock(pthread_mutex_t* mutex);
+```
+#### 互斥锁属性
+pthread_mutexattr_t结构体定义了一套完整的互斥锁属性，线程库提供了一系列函数来操作pthread_mutexattr_t类型的变量，以方便获取和设置互斥锁属性：
+``` C++
+#include <pthread.h>
+int pthread_mutexattr_init(pthread_mutexattr_t* attr);
+int pthread_mutexattr_destroy(pthread_mutexattr_t* attr);
+int pthread_mutexattr_getpshared(const pthread_mutexattr_t* attr, int* pshared);
+int pthread_mutexattr_setpshared(pthread_mutexattr_t* attr, int pshared);
+int pthread_mutexattr_gettype(const pthread_mutexattr_t* attr, int* type);
+int pthread_mutexattr_settype(const pthread_mutexattr_t* attr, int* type);
+```
+pshared指定是否允许跨进程共享互斥锁，可选值有：<br>
+- PTHREAD_PROCESS_SHARED：互斥锁可以被跨进程共享；<br>
+- PTHREAD_PROCESS_PRIVATE:互斥锁只能被和锁的初始化线程路属于同一个进程的线程共享。<br>
+互斥锁属性type指定互斥锁的类型，Linux支持如下4中类型的互斥锁：
+- PTHREAD_MUTEX_NORMAL：普通锁，这是互斥锁的默认类型，当一个线程对一个普通锁加锁以后，这种锁类型保证了资源分配的公平性，但这种锁容易引发问题：一个线程如果对一个已经加锁的普通锁再次加锁，将引发死锁，对一个已经被其他线程，加锁的普通锁解锁，或者对一个已经解锁的普通锁再次解锁，将导致不可预期的后果。
+- PTHREAD_MUTEX_ERRORCHECK：检错锁，一个线程如果对一个已经加锁的检错锁再次加锁，则加锁操作返回EDEADLK，对一个已经被其他线程加锁的检错锁解锁，或者对一个已经解锁的检错锁再次解锁，解锁返回EPRRM。
+- PTHREAD_MUTEX_ESCURSIVE：嵌套锁，这种锁允许一个线程在释放锁之前多次对它加锁而不引发死锁，不过其他线程如果要获得这个锁，则当前锁的拥有者必须执行相应次数的解锁操作，对一个已经被其他线程加锁的嵌套锁解锁，或者对一个已经解锁的嵌套锁再次解锁，则解锁返回EPREM
+- PTHREAD_MUTEX_DEFAULT：默认锁，一个线程如果对一个已经加锁的默认锁再次加锁，或者对一个已经被其他线程加锁的默认锁解锁，或者对一个已经解锁的默认锁再次解锁，将导致不可预期的后果，这种锁在实现的时候可能被映射为上面三种锁的之一。
