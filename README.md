@@ -1137,3 +1137,42 @@ pshared指定是否允许跨进程共享互斥锁，可选值有：<br>
 - PTHREAD_MUTEX_ERRORCHECK：检错锁，一个线程如果对一个已经加锁的检错锁再次加锁，则加锁操作返回EDEADLK，对一个已经被其他线程加锁的检错锁解锁，或者对一个已经解锁的检错锁再次解锁，解锁返回EPRRM。
 - PTHREAD_MUTEX_ESCURSIVE：嵌套锁，这种锁允许一个线程在释放锁之前多次对它加锁而不引发死锁，不过其他线程如果要获得这个锁，则当前锁的拥有者必须执行相应次数的解锁操作，对一个已经被其他线程加锁的嵌套锁解锁，或者对一个已经解锁的嵌套锁再次解锁，则解锁返回EPREM
 - PTHREAD_MUTEX_DEFAULT：默认锁，一个线程如果对一个已经加锁的默认锁再次加锁，或者对一个已经被其他线程加锁的默认锁解锁，或者对一个已经解锁的默认锁再次解锁，将导致不可预期的后果，这种锁在实现的时候可能被映射为上面三种锁的之一。
+### 条件变量
+如果说互斥锁是用于同步线程对共享数据的防蚊贴的话，那么条件变量则是用于在线程之间同步共享数据的值。条件变量提供了一种线程间的通知机制，当某个共享数据达到某个值的时候，唤醒等待这个共享数据的线程。相关函数主要有一下5个：
+``` C++
+#include <pthread.h>
+
+int pthread_cond_init(pthread_cond_t* cond, const pthread_condattr_t* cond_attr);
+int pthread_cond_destroy(pthread_cond_t *cond);
+int pthread_cond_broadcast(pthread_cond_t* cond);
+int pthread_cond_signal(pthread_cond_t* cond);
+int pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mutex);
+```
+第一个参数指向要操作的目标条件变量，条件变量的类型是pthread_cond_t结构体。<br>
+pthread_cond_init用于初始化条件变量，cond_attr指定条件变量的属性，为NULL则表示使用默认属性。<br>
+pthread_cond_broadcast以广播的方式唤醒所有等待目标条件变量的线程。<br>
+pthread_cond_signal用于唤醒一个等待目标条件变量的线程，至于哪个线程将被唤醒，则取决于线程的优先级和调度策略，要唤醒一个指定的线程时：定义一个能够唯一标识目标线程的全局变量，在唤醒等待条件变量的线程前先设置该变量为目标线程，然后采用广播方式唤醒所有等待条件变量的线程，这些线程被唤醒后检查该变量以判断被唤醒的是否是自己，如果是就开始执行后面的代码，否则返回。<br>
+pthread_cond_wait用于等待目标条件变量，mutex参数是用于保护条件变量的互斥锁，以确保pthread_cond_wait操作的原子性，在调用pthread_cond_wait前，必须确保mutex已经加锁，否则将导致不可预期的后果，pthread_cond_wait执行时，首先把调用线程放入条件变量的等待队列，然后将mutex解锁，可见，从pthread_cond_wait开始执行到其调用线程被放入条件变量的等待队列之前的这段时间，pthread_cond_signal和pthread_cond_broadcast等函数不会修改条件变量，换言之，pthread_cond_wait不会错过目标条件变量的任何变化，当pthread_cond_wait成功返回时，mutex将再次被锁上。<br>
+成功返回0，失败返回错误码。<br>
+### 多线程环境
+一个多线程程序的某个线程调用了fork函数，那么新创建的子进程不会创建和父进程相同数量的线程，子进程只拥有一个执行线程，它是调用fork的那个线程的完整复制，并且子进程将自动继承父进程中互斥锁的状态。pthread提供了一个专门的函数pthread_atfork，以确保调用后父进程和子进程都拥有一个清楚的锁状态，定义如下：
+``` C++
+#include <pthread.h>
+int pthread_atfork(void (*prepare)(void), void (*parent)(void), void (*child)(void));
+```
+该函数将建立3个fork句柄来理清互斥锁的状态，prepare句柄将在fork调用创建出子进程之前被执行，它可以用来锁住所有父进程中的互斥锁，parent句柄则是在fork调用创建出子进程之后，而fork返回之前，在父进程中被执行，它的作用是释放所有在prepare句柄中锁住的互斥锁，child句柄是在fork返回之前，在子进程中被执行，和parent句柄一样，child句柄也是用于释放所有在prepare中锁住的互斥锁，该函数成功返回10，失败返回错误码。<br>
+### 线程和信号
+每个线程都能独立地设置信号掩码，在多线程环境下应该使用以下函数设置信号掩码：
+``` C++
+#include <pthread.h>
+#include <signa.h>
+int pthread_sigmask(int how, const sigset_t* newmask, sigset_t* oldmask);
+```
+由于进程中所有线程共享该进程的信号，所以线程库根据线程掩码决定把信号发送给那个具体的线程，因此，如果我们在每个子线程中都单独设置信号掩码，就很容易导致逻辑错误。此外，所有线程共享信号处理函数，也就是说，当在一个线程中设置了某个信号的信号处理函数后，它将覆盖其他线程为同一个信号设置的信号处理函数。我们应该定义一个专门的线程来处理所有的信号：<br>
+- 在主线程创建出其他子线程之前就调用pthread_sigmask来设置好信号掩码，所有新创建的子线程都将自动继承这个信号掩码，这样做之后，实际上所有的线程都不会响应被屏蔽的信号
+- 在某个线程中调用如下函数来等待信号并处理之：
+``` C++
+#include <signal.h>
+int sigwait(const sigset_t* set, int* sig);
+```
+set参数指定需要等待的信号集合，我们可以将其指定为上一步中创建的信号掩码，表示在该线程中等待所有被屏蔽的信号，参数sig指向的整数用于存储该函数返回的信号值，sigwait调用成功返回0，失败返回错误码，一旦正确返回，我们就能处理收到的信号，使用了sigwait就不应该再为信号设置处理函数了，两者只能有一个起作用。<br>
