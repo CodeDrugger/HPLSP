@@ -1176,3 +1176,10 @@ int pthread_sigmask(int how, const sigset_t* newmask, sigset_t* oldmask);
 int sigwait(const sigset_t* set, int* sig);
 ```
 set参数指定需要等待的信号集合，我们可以将其指定为上一步中创建的信号掩码，表示在该线程中等待所有被屏蔽的信号，参数sig指向的整数用于存储该函数返回的信号值，sigwait调用成功返回0，失败返回错误码，一旦正确返回，我们就能处理收到的信号，使用了sigwait就不应该再为信号设置处理函数了，两者只能有一个起作用。<br>
+pthread还提供了下面的方法，使得我们可以明确地将一个信号发送给指定的线程：
+``` C++
+#include <signal.h>
+int pthread_kill(pthread_t thread, int sig);
+``` 
+thread参数指定目标进程，sig参数指定待发送的信号，如果sig为0，则pthread_kill不发送信号，但它仍然会检查错误，我们可以利用这种方式检测目标线程是否存在，pthread_kill成功返回0，失败返回错误码。
+## 进程池和线程池
