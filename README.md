@@ -1185,5 +1185,5 @@ thread参数指定目标进程，sig参数指定待发送的信号，如果sig�
 ## 进程池和线程池
 ...
 ## ERRNO
-EAGAIN/EWOULDBLOCK ：非阻塞模式下调用阻塞操作，该操作没有完成，对于非阻塞的socket而言，这不算是错误。<br>
-EINTER：进程在一个系统调用中阻塞，当捕获某个信号且响应的信号处理函数返回时，这个系统调用被中断，返回EINTER（Interrupted System Call）
+- EAGAIN/EWOULDBLOCK ：非阻塞模式下调用阻塞操作，该操作没有完成，对于非阻塞的socket而言，这不算是错误。<br>
+- EINTER：进程在一个系统调用中阻塞，当捕获某个信号且响应的信号处理函数返回时，这个系统调用被中断，返回EINTER（Interrupted System Call）
