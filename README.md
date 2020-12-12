@@ -589,11 +589,11 @@ c.上下文切换和锁：减少线程、进程切换的开销，减少锁的使
 #include <sys/select.h>
 /*
 nfds：指定被监听的文件描述符总数
-readfds、writefds、writefds分别指向可读、可写、异常事件对应的文件描述符集合，程序返回时修改他们通知应用程序 哪些文件描述符已就绪
+readfds、writefds、exceptfds分别指向可读、可写、异常事件对应的文件描述符集合，程序返回时修改他们通知应用程序 哪些文件描述符已就绪
 timeout：超时时间
 调用成功返回就绪的文件描述符数，失败返回-1
 */
-int select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* writefds, struct timeval* timeout);
+int select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* exceptfds, struct timeval* timeout);
 ```
 fd_set时long类型数组，每一个元素的每一位表示一个文件描述符，访问通常通过下列宏完成：
 ``` C++
