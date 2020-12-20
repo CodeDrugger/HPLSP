@@ -589,11 +589,11 @@ c.上下文切换和锁：减少线程、进程切换的开销，减少锁的使
 #include <sys/select.h>
 /*
 nfds：指定被监听的文件描述符总数
-readfds、writefds、writefds分别指向可读、可写、异常事件对应的文件描述符集合，程序返回时修改他们通知应用程序 哪些文件描述符已就绪
+readfds、writefds、exceptfds分别指向可读、可写、异常事件对应的文件描述符集合，程序返回时修改他们通知应用程序 哪些文件描述符已就绪
 timeout：超时时间
 调用成功返回就绪的文件描述符数，失败返回-1
 */
-int select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* writefds, struct timeval* timeout);
+int select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* exceptfds, struct timeval* timeout);
 ```
 fd_set时long类型数组，每一个元素的每一位表示一个文件描述符，访问通常通过下列宏完成：
 ``` C++
@@ -921,3 +921,269 @@ sem_op指定操作类型，其可选值为正整数、0、负整数，操作行�
   - 被操作的信号量集被进程移除，此时semop调用失败返回，errno被置为EIDRM
   - 调用被信号中断，此时semop调用失败返回，errno被置为EINTR，semzcnt的值被减1
 - 如果sem_op小于0，表示对信号量进行减操作，以期望获得该信号量，该操作要求进程对信号量有写权限
+
+
+num_sem_ops指定要执行的操作个数，即sem_ops数组中元素的个数。
+#### semctl系统调用
+semclt系统调用允许调用者对信号量进行直接控制。定义如下：
+``` C++
+#include <sys/sem.h>
+/*
+sem_id：semget返回的信号量集标识符
+sem_num：指定被操作的信号量在信号量集中的编号
+command：指定于要执行的命令
+int semctl(int sem_id, int sem_num, int command, ...);
+```
+### 共享内存
+最高效的进程间通信机制，但必须用其他手段同步进程对共享内存的访问。
+#### shmget系统调用
+shmget用于创建一段新的共享内存，或者获取一段已经存在的共享内存，定义如下：
+``` C++
+#include <sys/shm.h>
+/*
+key：用来标识一个全局唯一的共享内存
+size：指定共享内存的大小，单位是字节
+shmflg：含义与semget函数的semflg含义相同，多包含两个额外的标志
+SHM_HUGETLB：类似于mmap的MAP_HUGETLB，系统将使用大页面为共享内存分配空间
+SHM_NORESERVE：类似于mmp的MAP_NORESERVE标志，不为共享内存保留交换分区，这样当物理内存不足时，对该共享内存执行写操作将触发SIGSEGV信号
+调用成功返回正整数，即共享内存的标识符，失败返回-1，并置errno
+*/
+int shmget(key_t key, size_t size, int shmflg);
+```
+#### shmat和shmdt系统调用
+共享内存被创建/获取之后，我们不能立即访问它，而是需要现将它关联到进程的地址空间中，使用完共享内存后，我们也需要将它从进程的地址空间中分离，这两项任务分别由shmat和shmdt完成。
+``` C++
+#include <sys/shm.h>
+/*
+shm_id：是由shmget返回的共享内存标识符
+shm_addr：指定将共享内存关联到进程的哪块地址，最终结果受到shmflg的影响
+调用成功返回关联到的地址，失败返回-1
+void* shmat(int shm_id, const void* shm_addr, int shmflg);
+int shmdt(const void* shm_addr);
+```
+如果shm_addr为NULL，则被关联的地址由操作系统选择，这是推荐的做法，以确保可移植性。
+如果shm_addr非空，并且SHM_RND为设置，则共享内存会被关联到addr指定的地址处
+如果shm_addr非空，并且设置了SHM_RND，则被关联的地址为[shm_addr - (shm_addr % SHMLBA)]，SHMLBA在LINUX中为一个页面的大小
+shmflg还可以设置为SHM_RDONLY，即只能读取共享内存中的内容
+shmflg还可以设置为SHM_REMAP，如果shmaddr已被关联，则重新关联
+shmflg还可以设置为SHM_EXEC，指定对共享内存段的执行权限，对于共享内存来说，执行权限和读权限是一样的
+#### shmctl系统调用
+shmctl用于控制共享内存的某些属性，定义如下：
+``` C++
+#include <sys/shm.h>
+/*
+shm_id：shmget返回的信号量集标识符
+command：指定于要执行的命令
+int semctl(int sem_id, int command, struct shmid_ds* buf);
+```
+### 消息队列
+是在两个进程间传递二进制数据块的有效方式，每个数据块都有一个特定的类型，接收方可以根据类型有选择地接收数据，而不一定像管道和命名管道那样必须以先进先出的方式接收数据。
+#### msgget系统调用
+msgget系统调用用于创建一个消息队列，或者获取一个已有的消息队列，定义如下：
+``` C++
+#include <sys/msg.h>
+/*
+key：用来标识一个全局唯一的消息队列
+shmflg：含义与semget函数的semflg含义相同
+调用成功返回一个正整数，即消息队列的标识符，失败返回-1，并设置errno
+int msgget(key_t key, int msgflg);
+```
+#### msgsend系统调用
+msgsend把一条消息添加到消息队列中，定义如下：
+#include <sys/msg.h>
+/*
+msgid：由msgget返回的消息队列标识符
+msg_ptr：指向一个准备发送的消息，消息必须被定义为如下类型
+msg_sz：mtext的长度，可以为0
+msgflg：控制msgsend的行为，通常只能取IPC_NOWAIT，即非阻塞形式发送，队列已满立即返回，未设置时阻塞
+int msgsend(int msgid, const void* msg_ptr, size_t msg_sz, int msgflg);
+
+struct msgbuf {
+    long mtype; //消息类型 正整数
+    char mtext[512]; //消息数据
+}
+```
+#### msgrcv系统调用
+msgrcv系统调用从消息队列中获取消息，定义如下：
+``` C++
+#include <sys/msg.h>
+/*
+msgid：由msgget返回的消息队列标识符
+msg_ptr：用于存储接收的消息
+msg_sz：数据部分的长度
+msgtype：等于0，读取消息队列中的第一条消息；大于0，读取第一个消息类型为msgtype的消息；小于0，读取第一条类型值比msgtype的绝对值小的消息
+msgflg：IPC_NOWAIT，如果消息队列中没有数据，立即返回并设置errno为ENOMSG；MSG_EXCEPT，如果msgtype大于0，则接收第一个非msgtype类型的消息；MSG_NOERROR，数据部分的长度超过msg_sz，截断
+int msgrcv(int msgid, void* msg_ptr, size_t msg_sz, long int msgtype, int msgflg);
+```
+阻塞状态的调用还能被如下两种异常中断：<br>
+消息队列被移除，立即返回并设置errno为EIDRM<br>
+程序接收到信号，立即返回并设置errno为EINTR<br>
+#### msgctl系统调用
+msgctl系统调用控制消息队列的某些属性，定义如下：
+``` C++
+#include <sys/msg.h>
+int msgctl(int msgid, int command, struct msgid_ds* buf);
+```
+### IPC命令
+上述三种进程间通信的方式都是用一个全局唯一的键值来描述一个共享资源，当程序调用semget，shmget，msgget时，就创建了一个共享资源的实例，linux提供了ipcs命令，以观察系统上拥有哪些共享资源实例。
+## 多线程编程
+### 线程模型
+线程可分为内核线程和用户线程，内核线程运行在内核，由内核调度，用户线程运行在用户空间，由线程库调度，当一个内核线程获得CPU使用权时，就加载并运行一个用户线程，内核线程相当于用户线程运行的容器，一个进程可以拥有M个内核线程和N个用户线程，其中M<=N，并且在一个系统的所有进程中，M和N的比值是固定的，按照该比值，线程的实现方式可分为完全在用户空间实现、完全由内核调度、双层调度。<br>
+完全在用户空间实现的线程无需内核支持，内核甚至不知道这些线程的存在，线程库负责管理所有的执行线程，如优先级、时间片。线程库利用longjump来切换线程，使它们看起来是并发执行的，实际上内核仍然把整个进程作为最小单位进行调度，即N=1。优点是创建调度线程都无需内核干预，因此速度快，并且由于不占用额外的内核资源，因此创建很多线程也不会影响系统性能，缺点是多个线程无法在多个CPU上运行。<br>
+完全由内核调度的模式将创建、调度都交给了内核，与完全在用户空间实现相反，M:N=1:1<br>
+双层调度是前两种模式的混合体，不会过多消耗系统资源，线程切换速度也较快，也能在多核上运行。
+### 创建线程和结束线程
+创建一个线程的函数是pthread_create，定义如下：
+``` C++
+#include <pthread.h>
+/*
+thread：新线程的标识符
+attr：用于设置新线程的属性，传NULL表示使用默认属性，具体后续讨论
+strat_routine：新线程运行的函数
+arg：新线程运行的函数的参数
+成功返回0，失败返回错误码
+*/
+int pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*strat_routine) (void*), void* arg);
+
+#include <bits/pthreadtypes.h>
+typedef unsigned long int pthread_t;
+````
+线程被创建好后，内核就能调度内核线程来执行strat_routine所指向的函数，执行结束后最好调用如下函数，保证安全、干净地退出：
+``` C++
+#include <pthread.h>
+void pthread_exit(void* retval);
+```
+pthread_exit通过retval向线程的回收者传递其退出的信息，执行完之后不会返回到调用者，永远不会失败。<br>
+一个进程中的所有线程都可以调用pthread_join函数来挥回收其他线程，即等待其他线程结束，这类似于回收进程的wait和waitpid系统调用，定义为：
+``` C++
+#include <pthread.h>
+/*
+thread：目标线程的标识符
+retval：目标线程返回的推出信息
+该函数会一直阻塞，直到被回收的线程结束为止，调用成功返回0，失败返回错误码
+EDEADLK：可能产生死锁，如两个线程互相join或线程对自身join
+EINVAL：不可回收或有其他线程在回收
+ESRCH：目标线程不存在
+*/
+int pthread_join(pthread_t thread, voiod** retval);
+```
+有时我们想异常终止一个线程，即取消线程，用以下函数实现：
+``` C++
+#include <pthread.h>
+/*
+调用成功返回0，失败返回错误码
+*/
+int pthread_cancel(pthread_t thread);
+```
+接收到取消请求的线程可以决定是否允许被取消或如何取消，由下列函数实现：
+``` C++
+#include <pthread.h>
+/*
+state：有两个可选取值PTHREAD_CANCEL_ENABLE和PTHREAD_CANCEL_DISABLE
+*/
+int pthread_setcancelstate(int state, int* oldstate);
+
+/*
+type：有两个可选取值
+PTHREAD_CANCEL_ASYNCHRONOUS，即随时可以取消，接收到取消请求后立即行动
+PTHREAD_CANCEL_DEFERRED，延迟行动，直到调用了取消点函数中的一个pthread_join、pthread_testcancel、pthread_cond_wait、pthread_cond_timedwait、sem_wait、sig_wait
+最好使用pthread_testcancel设置取消点
+int pthread_setcanceltype(int type, int* oldtype);
+```
+### POSIX信号量
+Liunx有两组信号量API，一组是之前的system V IPC信号量，另一组是要讨论的POSIX信号量，他们接口相似，但不能保证互换，常用的POSXI信号量函数是下面5个：
+``` C++
+#include <semaphore.h>
+int sem_init(sem_t* sem, int pshared, unsigned int value);
+int sem_destroy(sem_t* sem);
+int sem_wait(sem_t *sem);
+int trywait(sem_t* sem);
+int sem_post(sem_t* sem);
+```
+sem_init用于初始化一个未命名信号量，pshared参数指定信号量的类型，如果为0，就表示这个信号量是当前进程的局部信号量，否则该信号量就可以在多个进程间共享，value参数指定信号量的初始值。<br>
+sem_destroy函数用于销毁信号量，以释放其占用的内核资源，销毁正在被其他进程使用的信号量结果不可预期。<br>
+sem_wait函数以原子操作的方式将信号量的值减1，当信号量的值为0，则sem_wait将被阻塞，直到这个信号量具有非0值。<br>
+sem_trywait与sem_wait相似，不过它始终立即返回，不论被操作的信号量是否有非0值，相当于sem_wait的非阻塞版本，当信号量的值非0是，sem_trywait对信号量执行减1操作，当信号量的值为0时，它返回-1并置errno为EAGAIN。<br>
+sem_post函数将以原子操作将信号量的值加1，当信号量的值大于0时，其他正在调用sem_wait等待信号量的线程将被唤醒<br>
+上面这些函数成功返回0，失败返回-1并置errno。<br>
+### 互斥锁
+互斥锁可以用于保护关键代码段，以确保其独占式的访问，这点像一个二进制信号量，当进入关键代码段时，我们需要获得互斥锁并将其枷锁，这等价于二进制信号量的P操作，当离开关键代码段时，我们需要对互斥锁解锁，以唤醒其他等待该互斥锁的线程，这等价于二进制信号量的V操作。<br>
+#### 互斥锁的基础API
+主要有下列5个函数：
+``` C++
+#include <pthread.h>
+int pthread_mutex_init(pthread_mutex_t* mutex, const pthread_mutexattr_t* muetxattr);
+int pthread_mutex_destroy(pthread_mutex_t* mutex);
+int pthread_mutex_lock(pthread_mutex_t* mutex);
+int pthread_mutex_trylock(pthread_mutex_t* mutex);
+int pthread_mutex_unlock(pthread_mutex_t* mutex);
+```
+#### 互斥锁属性
+pthread_mutexattr_t结构体定义了一套完整的互斥锁属性，线程库提供了一系列函数来操作pthread_mutexattr_t类型的变量，以方便获取和设置互斥锁属性：
+``` C++
+#include <pthread.h>
+int pthread_mutexattr_init(pthread_mutexattr_t* attr);
+int pthread_mutexattr_destroy(pthread_mutexattr_t* attr);
+int pthread_mutexattr_getpshared(const pthread_mutexattr_t* attr, int* pshared);
+int pthread_mutexattr_setpshared(pthread_mutexattr_t* attr, int pshared);
+int pthread_mutexattr_gettype(const pthread_mutexattr_t* attr, int* type);
+int pthread_mutexattr_settype(const pthread_mutexattr_t* attr, int* type);
+```
+pshared指定是否允许跨进程共享互斥锁，可选值有：<br>
+- PTHREAD_PROCESS_SHARED：互斥锁可以被跨进程共享；<br>
+- PTHREAD_PROCESS_PRIVATE:互斥锁只能被和锁的初始化线程路属于同一个进程的线程共享。<br>
+互斥锁属性type指定互斥锁的类型，Linux支持如下4中类型的互斥锁：
+- PTHREAD_MUTEX_NORMAL：普通锁，这是互斥锁的默认类型，当一个线程对一个普通锁加锁以后，这种锁类型保证了资源分配的公平性，但这种锁容易引发问题：一个线程如果对一个已经加锁的普通锁再次加锁，将引发死锁，对一个已经被其他线程，加锁的普通锁解锁，或者对一个已经解锁的普通锁再次解锁，将导致不可预期的后果。
+- PTHREAD_MUTEX_ERRORCHECK：检错锁，一个线程如果对一个已经加锁的检错锁再次加锁，则加锁操作返回EDEADLK，对一个已经被其他线程加锁的检错锁解锁，或者对一个已经解锁的检错锁再次解锁，解锁返回EPRRM。
+- PTHREAD_MUTEX_ESCURSIVE：嵌套锁，这种锁允许一个线程在释放锁之前多次对它加锁而不引发死锁，不过其他线程如果要获得这个锁，则当前锁的拥有者必须执行相应次数的解锁操作，对一个已经被其他线程加锁的嵌套锁解锁，或者对一个已经解锁的嵌套锁再次解锁，则解锁返回EPREM
+- PTHREAD_MUTEX_DEFAULT：默认锁，一个线程如果对一个已经加锁的默认锁再次加锁，或者对一个已经被其他线程加锁的默认锁解锁，或者对一个已经解锁的默认锁再次解锁，将导致不可预期的后果，这种锁在实现的时候可能被映射为上面三种锁的之一。
+### 条件变量
+如果说互斥锁是用于同步线程对共享数据的防蚊贴的话，那么条件变量则是用于在线程之间同步共享数据的值。条件变量提供了一种线程间的通知机制，当某个共享数据达到某个值的时候，唤醒等待这个共享数据的线程。相关函数主要有一下5个：
+``` C++
+#include <pthread.h>
+
+int pthread_cond_init(pthread_cond_t* cond, const pthread_condattr_t* cond_attr);
+int pthread_cond_destroy(pthread_cond_t *cond);
+int pthread_cond_broadcast(pthread_cond_t* cond);
+int pthread_cond_signal(pthread_cond_t* cond);
+int pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mutex);
+```
+第一个参数指向要操作的目标条件变量，条件变量的类型是pthread_cond_t结构体。<br>
+pthread_cond_init用于初始化条件变量，cond_attr指定条件变量的属性，为NULL则表示使用默认属性。<br>
+pthread_cond_broadcast以广播的方式唤醒所有等待目标条件变量的线程。<br>
+pthread_cond_signal用于唤醒一个等待目标条件变量的线程，至于哪个线程将被唤醒，则取决于线程的优先级和调度策略，要唤醒一个指定的线程时：定义一个能够唯一标识目标线程的全局变量，在唤醒等待条件变量的线程前先设置该变量为目标线程，然后采用广播方式唤醒所有等待条件变量的线程，这些线程被唤醒后检查该变量以判断被唤醒的是否是自己，如果是就开始执行后面的代码，否则返回。<br>
+pthread_cond_wait用于等待目标条件变量，mutex参数是用于保护条件变量的互斥锁，以确保pthread_cond_wait操作的原子性，在调用pthread_cond_wait前，必须确保mutex已经加锁，否则将导致不可预期的后果，pthread_cond_wait执行时，首先把调用线程放入条件变量的等待队列，然后将mutex解锁，可见，从pthread_cond_wait开始执行到其调用线程被放入条件变量的等待队列之前的这段时间，pthread_cond_signal和pthread_cond_broadcast等函数不会修改条件变量，换言之，pthread_cond_wait不会错过目标条件变量的任何变化，当pthread_cond_wait成功返回时，mutex将再次被锁上。<br>
+成功返回0，失败返回错误码。<br>
+### 多线程环境
+一个多线程程序的某个线程调用了fork函数，那么新创建的子进程不会创建和父进程相同数量的线程，子进程只拥有一个执行线程，它是调用fork的那个线程的完整复制，并且子进程将自动继承父进程中互斥锁的状态。pthread提供了一个专门的函数pthread_atfork，以确保调用后父进程和子进程都拥有一个清楚的锁状态，定义如下：
+``` C++
+#include <pthread.h>
+int pthread_atfork(void (*prepare)(void), void (*parent)(void), void (*child)(void));
+```
+该函数将建立3个fork句柄来理清互斥锁的状态，prepare句柄将在fork调用创建出子进程之前被执行，它可以用来锁住所有父进程中的互斥锁，parent句柄则是在fork调用创建出子进程之后，而fork返回之前，在父进程中被执行，它的作用是释放所有在prepare句柄中锁住的互斥锁，child句柄是在fork返回之前，在子进程中被执行，和parent句柄一样，child句柄也是用于释放所有在prepare中锁住的互斥锁，该函数成功返回10，失败返回错误码。<br>
+### 线程和信号
+每个线程都能独立地设置信号掩码，在多线程环境下应该使用以下函数设置信号掩码：
+``` C++
+#include <pthread.h>
+#include <signa.h>
+int pthread_sigmask(int how, const sigset_t* newmask, sigset_t* oldmask);
+```
+由于进程中所有线程共享该进程的信号，所以线程库根据线程掩码决定把信号发送给那个具体的线程，因此，如果我们在每个子线程中都单独设置信号掩码，就很容易导致逻辑错误。此外，所有线程共享信号处理函数，也就是说，当在一个线程中设置了某个信号的信号处理函数后，它将覆盖其他线程为同一个信号设置的信号处理函数。我们应该定义一个专门的线程来处理所有的信号：<br>
+- 在主线程创建出其他子线程之前就调用pthread_sigmask来设置好信号掩码，所有新创建的子线程都将自动继承这个信号掩码，这样做之后，实际上所有的线程都不会响应被屏蔽的信号
+- 在某个线程中调用如下函数来等待信号并处理之：
+``` C++
+#include <signal.h>
+int sigwait(const sigset_t* set, int* sig);
+```
+set参数指定需要等待的信号集合，我们可以将其指定为上一步中创建的信号掩码，表示在该线程中等待所有被屏蔽的信号，参数sig指向的整数用于存储该函数返回的信号值，sigwait调用成功返回0，失败返回错误码，一旦正确返回，我们就能处理收到的信号，使用了sigwait就不应该再为信号设置处理函数了，两者只能有一个起作用。<br>
+pthread还提供了下面的方法，使得我们可以明确地将一个信号发送给指定的线程：
+``` C++
+#include <signal.h>
+int pthread_kill(pthread_t thread, int sig);
+``` 
+thread参数指定目标进程，sig参数指定待发送的信号，如果sig为0，则pthread_kill不发送信号，但它仍然会检查错误，我们可以利用这种方式检测目标线程是否存在，pthread_kill成功返回0，失败返回错误码。
+## 进程池和线程池
+...
+## ERRNO
+- EAGAIN/EWOULDBLOCK ：非阻塞模式下调用阻塞操作，该操作没有完成，对于非阻塞的socket而言，这不算是错误。<br>
+- EINTER：进程在一个系统调用中阻塞，当捕获某个信号且响应的信号处理函数返回时，这个系统调用被中断，返回EINTER（Interrupted System Call）
