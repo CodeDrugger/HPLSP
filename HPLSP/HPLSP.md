@@ -3,17 +3,17 @@ Linux高性能服务器学习
 ## 一.TCP/IP协议
 ### a.协议层次<br>
 1.TCP、IP协议是一个四层的结构：<br>
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/001.png)
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/001.png)
 2.数据链路层，常用的协议是ARP协议和RARP协议，实现了IP地址和物理地址之间的转化<br>
 3.网络层，常用协议有ICMP、IP<br>
 4.传输层，常用协议有TCP、UDP<br>
 5.应用层，不举例<br>
 ### b.协议封装<br>
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/002.png)
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/002.png)
 ## 二.IP协议
 ### a.IPV4<br>
 1.头部结构：<br>
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/003.png)
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/003.png)
 - 4位版本号固定为4；
 - 4位头部长度表示头部有多少个4字节，4位最大表示15，所以头部长度最大为60字节；
 - 8位服务类型包括：3位的优先权（已废弃），4位的TOS字段（分别表示最小延时，最大吞吐量，最高可用性，最小费用，只能有一个置为1），1位的保留字段（必须为0）；
@@ -34,7 +34,7 @@ IP报文长度超过数据帧的MTU时，分片；MTU为1500字节，因此携�
 route命令查看路由表<br>
 ### b.IPV6
 1.头部结构：<br>
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/004.png)
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/004.png)
 - 4位版本号固定为6；
 - 8位通信类型类似于IPV4的TOS；
 - 20位标签流，指示数据优先级，如实时视频；
@@ -46,7 +46,7 @@ route命令查看路由表<br>
 ## 三.TCP协议
 ### a.特点：面向连接，字节流，可靠传输
 ### b.头部结构
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/005.png)
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/005.png)
 - 16位源端口号；
 - 16位目的端口号；
 - 32位序号，一次TCP通信某一方向上的字节流的每个字节编号，即当前报文中第一个字节相对于字节流头部的偏移，单位为字节；
@@ -63,11 +63,11 @@ route命令查看路由表<br>
 - 16位校验和，CRC校验；
 - 16位紧急指针，是一个正的偏移量，是当前报文紧急数据存放处的偏移的下一字节；<br>
 ### c.三次握手四次挥手
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/006.png)
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/006.png)
 ### d.半关闭状态
 通信的一方发送结束报文给对方，但仍允许接收数据，直到对方也发送了结束报文，这种状态就是半关闭状态<br>
 ### e.TCP状态转移
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/007.png)
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/007.png)
 TIME_WAIT状态是一方收到另一方的结束报文时，不直接关闭，而是等待2个最大报文生存时间，保证连接可靠关闭以及迟到数据正确接收<br>
 ### f.带外数据
 TCP没有真正的带外数据，可以通过紧急指针实现，带外数据只有1字节<br>
@@ -277,7 +277,7 @@ struct iovec
     size_t iov_len; //内存块长度
 }
 ```
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/008.png)
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/008.png)
 ### k.带外数据
 内核通知应用程序带外数据到来的方式通常有I/O复用产生的异常事件和SIGURG信号，应用程序可以通过如下系统调用知道带外数据在数据流中的位置：<br>
 ``` C++
@@ -320,7 +320,7 @@ option_len：被操作选项的值的长度，restrict表示该指针是访问�
 int getsockopt(int sockfd, int level, int option_name, void* option_value, socklen_t* restrict option_len);
 int setsockopt(int sockfd, int level, int option_name, const void* option_value, socklen_t option_len);
 ```
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/009.png)
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/009.png)
 SO_REUSEADDR：设置该选项强制使用被处于TIME_WAIT状态的连接占用的socket地址<br>
 SO_RCVBUF、SO_SNDBUF：设置TCP接收缓冲区和发送缓冲区的大小，设置后系统通常会将其加倍，并且不得小于某个值<br>
 SO_RCVLOWAT、SO_SNDLOWAT：分别表示TCP接收缓冲区和发送缓冲区的低水位标记，一般被IO复用系统调用用来判断socket是否可读或可写，当接收缓冲区的数据大于标记时，IO复用通知应用程序可读取数据，当发送缓冲区的空闲空间大于标记时，IO复用通知应用程序可写入数据，通常都是1<br>
@@ -464,7 +464,7 @@ offset：指定从文件的何处开始映射
 void* mmap(void* start, size_t length, int prot, int flags, int fd, off_t offset);
 ```
 flags的常用值以及含义：<br>
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/010.png)
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/010.png)
 ### splice函数
 用于在两个文件描述符之间移动数据，是零拷贝操作
 ``` C++
@@ -479,7 +479,7 @@ fd_in和fd_out必须至少有一个是管道文件描述符，调用成功返移
 */
 ssize_t splice(int fd_in, loff_t* off_in, int fd_out, loff_t* off_out, size_t len, unsigned int flags);
 ```
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/011.png)
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/011.png)
 ### tee函数
 在两个管道文件描述符之间复制数据，是零拷贝操作，它不消耗数据，源文件描述符上的数据仍然可以用作后续的读操作
 ``` C++
@@ -504,7 +504,7 @@ cmd：指定执行何种类型的操作
 */
 int fcntl(int fd, int cmd, ... );
 ```
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/012.png)<br>
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/012.png)<br>
 通常用作将一个文件描述符设置为非阻塞的：
 ``` C++
 #include <fcntl.h>
@@ -627,7 +627,7 @@ struct pollfd {
 };
 ```
 events告诉poll监听fd上的哪些事件，它是一系列事件的按位或，如下图：
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/013.png)<br>
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/013.png)<br>
 ### epoll系统调用
 epoll是Linux特有的I/O复用函数，epoll把用户关心的文件描述符放在内核的一个时间列表里，epoll需要一个额外的文件描述符，来唯一标识内核中的事件表，这个文件描述符使用如下函数创建：
 ``` C++
@@ -681,7 +681,7 @@ epoll对文件描述符的操作有两种，LT（Level Trigger，电平触发）
 ### EPOLLONESHOT
 一个线程或进程读取完socket上的数据并开始处理时，如果该socket上又有新的数据可读，此时另一个线程或进程被唤醒来读取数据，就会出现两个线程或进程操作同一个socket的局面，为了避免这种情况，可以用epoll的EPOLLONWSHOT解决。
 ### 三组I/O复用函数的比较
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/014.png)<br>
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/014.png)<br>
 ### 非阻塞connect
 connect默认是阻塞的，在需创建大量线程向另一主机发送数据时，在connect是阻塞的情况下，如果网络发生异常，将有大量线程阻塞在此处等待超时（75s至几分钟），这些线程不会释放系统资源，资源达到上限后导致系统资源枯竭。如果使用非阻塞connect，connect将立即返回，接着调用select或poll等待设定的时间后返回，再调用getsockopt获取并清除socket上的错误信息，如果错误是0，表示调用成功。具体过程如下：
 - 创建socket，返回套接口描述符；
@@ -758,7 +758,7 @@ struct sigaction {
     void (*sa_restorer) (void);
 }
 ```
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/015.png)<br>
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/015.png)<br>
 ### 信号集
 #### 信号集函数
 Linux使用sigset_t表示一组信号，定义如下：
@@ -864,7 +864,7 @@ pid_t wait(int* stat_loc);
 pid_t waitpid(pid_t pid, int* stat_loc, int options);
 ```
 wait函数将阻塞进程，直到该进程的某个子进程结束运行为止，它返回结束运行的子进程的PID，并将该子进程的的退出信息存储于stct_loc指向的内存中，可以使用下列宏来解析子进程退出的状态：
-![](https://github.com/CodeDrugger/HPLSP/raw/master/pic/016.png)<br>
+![](https://github.com/CodeDrugger/Learning/raw/master/HPLSP/pic/016.png)<br>
 wait函数的阻塞特性显然不是服务器程序所希望的，而waitpid解决了这个问题，waitpid只能等待由pid参数指定的子进程，如果pid取值为-1，那么它就和wait函数一样，即等待任意一个子进程结束，stat_loc参数的含义与wait函数的stat_loc相同，options可以控制waitpid函数的行为，该参数最常用的取值是WNOHANG，取该值是，waitpid调用将是非阻塞的：如果pid指定的目标子进程还没有结束或意外终止，则waitpid立即返回0，如果目标子进程正常退出了，返回子进程的PID，调用失败返回-1。
 在事件已经发生的情况下执行非阻塞调用才能提高程序效率，对于waitpid函数而言，我们最好在某个子进程退出之后再调用它，可以使用SIGCHLD信号判断，当一个进程结束时，他将给其父进程发送一个SIGCHLD信号，我们可以在父进程中捕获SIGCHLD信号，并在信号处理函数中调用waitpid彻底结束一个子进程。
 ### 管道
